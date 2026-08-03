@@ -1,12 +1,22 @@
-import { useState } from 'react'
-import "bootstrap/dist/css/bootstrap.min.css";
-import { Routes, Route } from "react-router-dom";
-import Header from "./components/Header";
-import Footer from "./components/Footer";
-import Home from "./pages/Home";
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import ParentDashBoard from './pages/ParentsOverview'
+import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom'
+import Library from './pages/Library'
+import TestPage from './pages/TestPage'
+
+// TEMPORARY - remove once real navbar/landing page exists
+function DevNav() {
+  return (
+    <div style={{
+      padding: '10px 20px',
+      backgroundColor: '#121212',
+      borderBottom: '1px solid #262626',
+      display: 'flex',
+      gap: '16px'
+    }}>
+      <Link to="/library" style={{ color: '#38bdf8', textDecoration: 'none' }}>Library</Link>
+      <Link to="/test" style={{ color: '#38bdf8', textDecoration: 'none' }}>Test Page</Link>
+    </div>
+  )
+}
 
 function App() {
 

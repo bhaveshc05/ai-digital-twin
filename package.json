@@ -1,0 +1,16 @@
+{
+  "name": "ai-digital-twin-root",
+  "version": "1.0.0",
+  "description": "AI Digital Twin Monorepo Root",
+  "scripts": {
+    "dev:node": "npm --prefix node-backend run dev",
+    "dev:fastapi": "cd fastapi-backend && uvicorn app.main:app --port 8000 --reload",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "start": "start.bat"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

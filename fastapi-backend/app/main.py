@@ -9,6 +9,7 @@ from sqlalchemy import text
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 from database.session import get_db
+from app.api.routes import router as api_router
 
 app = FastAPI(title="AI Digital Twin API")
 
@@ -21,9 +22,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(api_router, prefix="/api/v1")
+
 @app.get("/")
 def read_root():
-    return {"status": "online", "message": "AI Digital Twin Backend API is running!"}
+    return {"status": "online", "message": "AI Digital Twin FastAPI Backend is running!"}
 
 @app.get("/health")
 def health_check(db: Session = Depends(get_db)):

@@ -1,12 +1,15 @@
 const { Pool } = require('pg');
-require('dotenv').config({ path: '../.env' });
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+
+const connectionString = process.env.DATABASE_URL || 'postgresql://twin_user:twin_password@localhost:5434/twin_db';
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString,
 });
 
 pool.on('connect', () => {
-  console.log('Connected to PostgreSQL (twin_db) on port 5434');
+  console.log('Connected to PostgreSQL (twin_db)');
 });
 
 pool.on('error', (err) => {
