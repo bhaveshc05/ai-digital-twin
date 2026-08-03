@@ -1,186 +1,24 @@
-:root {
-  --bs-primary: #38bdf8;
-  --bs-primary-rgb: 56, 189, 248;
-  --bs-dark: #000000;
-  --bs-body-bg: #000000;
-  --bs-body-color: #e2e8f0;
-  --bs-card-bg: #121212;
-  --bs-border-color: #262626;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background-color: #0F172A;
+  color: white;
+  min-height: 100%;
+  font-family: "Inter", sans-serif;
 }
 
 body {
-  background-color: var(--bs-body-bg);
-  color: var(--bs-body-color);
+  margin: 0;
+  padding: 0;
 }
 
-.bg-primary {
-  background-color: var(--bs-primary) !important;
-  color: #000000 !important;
+#root {
+  min-height: 100vh;
+  background-color: #0F172A;
 }
 
-.badge.bg-primary,
-.badge-primary {
-  color: #000000 !important;
-}
-
-.btn-primary {
-  background-color: var(--bs-primary);
-  border-color: var(--bs-primary);
-  color: #000000;
-}
-
-.card {
-  background-color: var(--bs-card-bg);
-  border-color: var(--bs-border-color);
-}
-
-/* Remove Bootstrap auto-generated dropdown caret arrow */
-.no-caret::after,
-.no-caret .dropdown-toggle::after {
-  display: none !important;
-}
-
-/* Breadcrumb styling */
-.breadcrumb {
-  --bs-breadcrumb-divider-color: #8a94a6;
-  font-size: 14px;
-}
-
-.breadcrumb-item+.breadcrumb-item::before {
-  color: #8a94a6 !important;
-}
-
-.breadcrumb-item a {
-  color: #8a94a6 !important;
-  text-decoration: none !important;
-  transition: color 0.15s ease;
-}
-
-.breadcrumb-item a:hover,
-.breadcrumb-item a:focus {
-  color: var(--bs-primary) !important;
-  text-decoration: none !important;
-}
-
-.breadcrumb-item.active {
-  color: var(--bs-body-color) !important;
-  font-weight: 600;
-}
-
-/* Modal styling */
-.library-modal {
-  background-color: #121212;
-  color: var(--bs-body-color);
-  border: 1px solid #262626;
-  border-radius: 16px;
-}
-
-.library-modal .modal-header .btn-close {
-  filter: invert(1) grayscale(100%) brightness(200%);
-}
-
-.library-modal .form-control:focus {
-  border-color: var(--bs-primary);
-  box-shadow: 0 0 0 0.15rem rgba(56, 189, 248, 0.25);
-}
-
-/* Hide default caret on FAB dropdown toggle */
-.dropdown-toggle.border-0.shadow-lg::after {
-  display: none !important;
-}
-
-/* Grid layout */
-.library-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 16px;
-}
-
-/* Kebab and action icon styling */
-.kebab-icon,
-.kebab-icon:hover,
-.kebab-icon:focus,
-.kebab-icon:active,
-.kebab-icon:focus-visible {
-  background-color: transparent !important;
-  background: none !important;
-  box-shadow: none !important;
-}
-
-.kebab-icon.show {
-  background-color: transparent !important;
-}
-
-.kebab-icon i {
-  color: #8a94a6 !important;
-  transition: color 0.15s ease;
-}
-
-.kebab-icon:hover i,
-.kebab-icon:focus i {
-  color: var(--bs-primary) !important;
-}
-
-.dropdown-item.text-danger {
-  color: #ef4444 !important;
-}
-
-.dropdown-item.text-danger:hover,
-.dropdown-item.text-danger:focus {
-  color: #f87171 !important;
-  background-color: rgba(239, 68, 68, 0.15) !important;
-}
-
-/* Custom Tooltip Dark Theme Styling */
-.tooltip {
-  z-index: 1080 !important;
-  pointer-events: none;
-}
-
-.tooltip.show {
-  opacity: 1 !important;
-}
-
-.tooltip-inner {
-  background-color: #1e293b !important;
-  color: #e2e8f0 !important;
-  border: 1px solid #334155;
-  padding: 6px 10px;
-  font-size: 12px;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-
-.bs-tooltip-top .tooltip-arrow::before,
-.bs-tooltip-auto[data-popper-placement^="top"] .tooltip-arrow::before {
-  border-top-color: #1e293b !important;
-}
-
-.bs-tooltip-bottom .tooltip-arrow::before,
-.bs-tooltip-auto[data-popper-placement^="bottom"] .tooltip-arrow::before {
-  border-bottom-color: #1e293b !important;
-}
-
-@media (max-width: 1199px) {
-  .library-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-@media (max-width: 991px) {
-  .library-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (max-width: 767px) {
-  .library-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 575px) {
-  .library-grid {
-    grid-template-columns: 1fr;
-  }
-}

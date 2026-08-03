@@ -1,33 +1,26 @@
-import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom'
-import Library from './pages/Library'
-import TestPage from './pages/TestPage'
-
-// TEMPORARY - remove once real navbar/landing page exists
-function DevNav() {
-  return (
-    <div style={{
-      padding: '10px 20px',
-      backgroundColor: '#121212',
-      borderBottom: '1px solid #262626',
-      display: 'flex',
-      gap: '16px'
-    }}>
-      <Link to="/library" style={{ color: '#38bdf8', textDecoration: 'none' }}>Library</Link>
-      <Link to="/test" style={{ color: '#38bdf8', textDecoration: 'none' }}>Test Page</Link>
-    </div>
-  )
-}
+import { useState } from 'react'
+import "bootstrap/dist/css/bootstrap.min.css";
+import { Routes, Route } from "react-router-dom";
+import Header from "./components/Header";
+import Footer from "./components/Footer";
+import Home from "./pages/Home";
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import ParentDashBoard from './pages/ParentsOverview'
 
 function App() {
+
   return (
-    <BrowserRouter>
-      <DevNav />
+    <>
+      <Header/>
       <Routes>
-        <Route path="/" element={<Navigate to="/library" replace />} />
-        <Route path="/library" element={<Library />} />
-        <Route path="/test" element={<TestPage />} />
-      </Routes>
-    </BrowserRouter>
+        <Route path="/" element={<Home />} />
+        <Route path="/Login" element={<Login />} />
+        <Route path="/parents-dashBoard" element={<ParentDashBoard />} />
+        <Route path="/Signup" element={<Signup />} />
+        </Routes>
+      <Footer/>
+    </>
   )
 }
 
