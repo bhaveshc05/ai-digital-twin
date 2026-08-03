@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const db = require('./db');
+const apiRoutes = require('./routes/api');
 
 const app = express();
 
@@ -12,7 +13,7 @@ app.get('/', (req, res) => {
   res.json({ message: 'Node.js Primary Backend API is running!' });
 });
 
-// Health check route connecting to PostgreSQL on port 5434
+// Health check route connecting to PostgreSQL
 app.get('/health', async (req, res) => {
   try {
     const result = await db.query('SELECT NOW()');
@@ -23,8 +24,11 @@ app.get('/health', async (req, res) => {
     });
   } catch (err) {
     console.error('Database connection error:', err);
-    res.status(500).json({ status: 'error', message: 'Database connection failed' });
+    res.status(500).json({ status: 'error', message: 'Database connection failed', details: err.message });
   }
 });
+
+// API routes
+app.use('/api', apiRoutes);
 
 module.exports = app;
