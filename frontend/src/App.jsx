@@ -1,0 +1,34 @@
+import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom'
+import Library from './pages/Library'
+import TestPage from './pages/TestPage'
+
+// TEMPORARY - remove once real navbar/landing page exists
+function DevNav() {
+  return (
+    <div style={{
+      padding: '10px 20px',
+      backgroundColor: '#121212',
+      borderBottom: '1px solid #262626',
+      display: 'flex',
+      gap: '16px'
+    }}>
+      <Link to="/library" style={{ color: '#38bdf8', textDecoration: 'none' }}>Library</Link>
+      <Link to="/test" style={{ color: '#38bdf8', textDecoration: 'none' }}>Test Page</Link>
+    </div>
+  )
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <DevNav />
+      <Routes>
+        <Route path="/" element={<Navigate to="/library" replace />} />
+        <Route path="/library" element={<Library />} />
+        <Route path="/test" element={<TestPage />} />
+      </Routes>
+    </BrowserRouter>
+  )
+}
+
+export default App
