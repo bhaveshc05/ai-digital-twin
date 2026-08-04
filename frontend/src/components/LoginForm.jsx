@@ -1,49 +1,54 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { loginStudent } from "../services/api";
 
 const LoginForm = () => {
-
   const navigate = useNavigate();
 
   const [user, setUser] = useState({
     email: "",
     password: "",
   });
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
-
     const { name, value } = e.target;
-
     setUser({
       ...user,
       [name]: value,
     });
-
   };
 
-  const handleSubmit = (e) => {
-
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
 
-    const savedUser = JSON.parse(localStorage.getItem("user"));
+    // 1. Authenticate with PostgreSQL database via Node API
+    const apiResult = await loginStudent(user.email, user.password);
+    setLoading(false);
 
-    if (!savedUser) {
-      alert("Please Sign Up first!");
+    if (apiResult.success) {
+      localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("user", JSON.stringify(apiResult.user || user));
+      alert(`Welcome back, ${apiResult.user?.full_name || 'Student'}! Login successful.`);
+      navigate("/");
       return;
     }
 
-    if (
-  savedUser.email === user.email &&
-  savedUser.password === user.password
-) {
+    // 2. Fallback to localStorage check if offline
+    const savedUser = JSON.parse(localStorage.getItem("user"));
+    const savedStudents = JSON.parse(localStorage.getItem("students")) || [];
 
-  localStorage.setItem("isLoggedIn", "true");
+    const localMatch = (savedUser && savedUser.email === user.email && savedUser.password === user.password) ||
+                       savedStudents.some((s) => s.email === user.email && s.password === user.password);
 
-  navigate("/");
+    if (localMatch) {
+      localStorage.setItem("isLoggedIn", "true");
+      alert("Login successful!");
+      navigate("/");
     } else {
-      alert("Invalid Email or Password!");
+      alert("Login failed: " + (apiResult.error || "Invalid Email or Password!"));
     }
-
   };
 
   return (
@@ -100,8 +105,9 @@ const LoginForm = () => {
           <button
             type="submit"
             className="btn btn-primary w-100 py-2"
+            disabled={loading}
           >
-            Login
+            {loading ? "Authenticating..." : "Login"}
           </button>
 
           <div className="text-center mt-3">

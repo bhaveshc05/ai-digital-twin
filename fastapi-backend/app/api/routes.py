@@ -14,6 +14,9 @@ router = APIRouter()
 class StudentCreate(BaseModel):
     email: str
     full_name: str
+    board: Optional[str] = None
+    grade: Optional[str] = None
+    guardian_email: Optional[str] = None
 
 class ChunkCreate(BaseModel):
     student_id: str
@@ -23,15 +26,37 @@ class ChunkCreate(BaseModel):
 @router.get("/students")
 def list_students(db: Session = Depends(get_db)):
     students = db.query(Student).all()
-    return {"students": [{"student_id": str(s.student_id), "email": s.email, "full_name": s.full_name, "created_at": s.created_at} for s in students]}
+    return {"students": [{
+        "student_id": str(s.student_id),
+        "email": s.email,
+        "full_name": s.full_name,
+        "board": s.board,
+        "grade": s.grade,
+        "date_of_birth": str(s.date_of_birth) if s.date_of_birth else None,
+        "guardian_email": s.guardian_email,
+        "created_at": s.created_at
+    } for s in students]}
 
 @router.post("/students")
 def create_student(student: StudentCreate, db: Session = Depends(get_db)):
-    new_student = Student(email=student.email, full_name=student.full_name)
+    new_student = Student(
+        email=student.email,
+        full_name=student.full_name,
+        board=student.board,
+        grade=student.grade,
+        guardian_email=student.guardian_email
+    )
     db.add(new_student)
     db.commit()
     db.refresh(new_student)
-    return {"student_id": str(new_student.student_id), "email": new_student.email, "full_name": new_student.full_name}
+    return {
+        "student_id": str(new_student.student_id),
+        "email": new_student.email,
+        "full_name": new_student.full_name,
+        "board": new_student.board,
+        "grade": new_student.grade,
+        "guardian_email": new_student.guardian_email
+    }
 
 @router.get("/chunks")
 def list_chunks(db: Session = Depends(get_db)):

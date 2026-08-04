@@ -3,15 +3,22 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-load_dotenv()
+# Load .env file from root directory if present
+env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.env"))
+if os.path.exists(env_path):
+    load_dotenv(dotenv_path=env_path)
+else:
+    load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://twin_user:twin_password@localhost:5434/twin_db")
 
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL environment variable is not set. Check your .env file.")
-
-# Create SQLAlchemy engine connecting to PostgreSQL on port 5434
-engine = create_engine(DATABASE_URL, echo=True)
+# Create SQLAlchemy engine with pool pre-ping to automatically reconnect on stale connections
+engine = create_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,
+    pool_recycle=3600
+)
 
 # Session factory for creating database sessions
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
