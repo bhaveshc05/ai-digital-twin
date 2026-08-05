@@ -52,5 +52,15 @@ services:
       - node-backend
       - fastapi-backend
 
+  celery-worker:
+    build: ./fastapi-backend
+    container_name: twin_celery_worker
+    command: celery -A worker.celery_app worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://twin_user:twin_password@postgres:5432/twin_db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
 volumes:
   pgdata:
