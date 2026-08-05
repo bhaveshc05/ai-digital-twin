@@ -32,7 +32,9 @@ services:
       - redis
 
   fastapi-backend:
-    build: ./fastapi-backend
+    build:
+      context: .
+      dockerfile: fastapi-backend/Dockerfile
     container_name: twin_fastapi_backend
     ports:
       - "8000:8000"
@@ -51,6 +53,19 @@ services:
     depends_on:
       - node-backend
       - fastapi-backend
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: fastapi-backend/Dockerfile
+    container_name: twin_celery_worker
+    command: celery -A worker.celery_app worker --loglevel=info --pool=solo
+    environment:
+      - DATABASE_URL=postgresql://twin_user:twin_password@postgres:5432/twin_db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
 
 volumes:
   pgdata:
