@@ -3,7 +3,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List, Optional
 from pydantic import BaseModel
+from worker.tasks import process_chunk_embedding
+from worker.celery_app import celery_app
 import sys, os
+
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 from database.session import get_db
@@ -22,6 +25,10 @@ class ChunkCreate(BaseModel):
     student_id: str
     text_content: str
     topic_tags: Optional[List[str]] = []
+
+class EmbedRequest(BaseModel):
+    chunk_id: str
+    text_content: str
 
 @router.get("/students")
 def list_students(db: Session = Depends(get_db)):
@@ -62,3 +69,17 @@ def create_student(student: StudentCreate, db: Session = Depends(get_db)):
 def list_chunks(db: Session = Depends(get_db)):
     chunks = db.query(KnowledgeChunk).all()
     return {"chunks": [{"chunk_id": str(c.chunk_id), "student_id": str(c.student_id), "text_content": c.text_content, "topic_tags": c.topic_tags} for c in chunks]}
+
+@router.post("/process-embedding")
+def trigger_embedding(payload: EmbedRequest):
+    task = process_chunk_embedding.delay(payload.chunk_id, payload.text_content)
+    return {"task_id": task.id, "status": "queued"}
+
+@router.get("/task-status/{task_id}")
+def get_task_status(task_id: str):
+    result = celery_app.AsyncResult(task_id)
+    return {
+        "task_id": task_id,
+        "status": result.status,          # PENDING / STARTED / SUCCESS / FAILURE
+        "result": result.result if result.ready() else None,
+    }
