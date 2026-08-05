@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
+import { registerStudent } from "../services/api";
 
 const SignupForm = () => {
 
@@ -20,6 +20,7 @@ const SignupForm = () => {
   const [dateOfBirth, setDateOfBirth] = useState(null);
   const [examDate, setExamDate] = useState(null);
   const [isMinor, setIsMinor] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -44,7 +45,7 @@ const SignupForm = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (
@@ -85,24 +86,27 @@ const SignupForm = () => {
     studentData.age = age;
     studentData.consentStatus = age < 18 ? "pending_guardian_verification" : "not_required";
 
-    const existingStudents = JSON.parse(localStorage.getItem("students")) || [];
+    setLoading(true);
 
-    const alreadyExists = existingStudents.some(
-      (s) => s.email === studentData.email
-    );
+    // Save directly to PostgreSQL Database in Docker via Node Backend API
+    const apiResult = await registerStudent(studentData);
+    setLoading(false);
 
-    if (alreadyExists) {
-      alert("An account with this email already exists!");
+    if (!apiResult.success) {
+      alert("Database error: " + (apiResult.error || "Could not save to PostgreSQL database"));
       return;
     }
 
+    // Also store local copy for offline browser state
+    const existingStudents = JSON.parse(localStorage.getItem("students")) || [];
     existingStudents.push(studentData);
     localStorage.setItem("students", JSON.stringify(existingStudents));
+    localStorage.setItem("user", JSON.stringify(studentData));
 
     if (age < 18) {
-      alert("Signup successful! A consent request has been sent to your guardian's email.");
+      alert("Signup successful! Profile saved to PostgreSQL database (twin_db). A consent request has been sent to your guardian's email.");
     } else {
-      alert("Signup Successful! Your Student Profile is ready.");
+      alert("Signup Successful! Your Student Profile has been saved to the PostgreSQL database (twin_db).");
     }
 
     navigate("/login");

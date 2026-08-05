@@ -34,6 +34,46 @@ export async function fetchStudents() {
   }
 }
 
+export async function registerStudent(studentData) {
+  try {
+    const res = await fetch(`${NODE_API_URL}/api/students`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(studentData),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      throw new Error(data.error || `HTTP ${res.status}`)
+    }
+    return data
+  } catch (err) {
+    console.error('Error saving student to PostgreSQL:', err)
+    return { success: false, error: err.message }
+  }
+}
+
+export async function loginStudent(email, password) {
+  try {
+    const res = await fetch(`${NODE_API_URL}/api/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      throw new Error(data.error || `HTTP ${res.status}`)
+    }
+    return data
+  } catch (err) {
+    console.error('Error logging in student:', err)
+    return { success: false, error: err.message }
+  }
+}
+
 export async function fetchFastAPIChunks() {
   try {
     const res = await fetch(`${FASTAPI_URL}/api/v1/chunks`)
