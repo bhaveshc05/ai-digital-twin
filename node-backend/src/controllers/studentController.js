@@ -17,8 +17,9 @@ exports.createStudent = async (req, res) => {
   const studentName = full_name || name;
   const dob = date_of_birth || dateOfBirth;
   const parentEmail = guardian_email || guardianEmail;
+  const cleanEmail = email ? email.trim().toLowerCase() : '';
 
-  if (!email || !studentName) {
+  if (!cleanEmail || !studentName) {
     return res.status(400).json({ success: false, error: 'email and name are required' });
   }
 
@@ -34,10 +35,10 @@ exports.createStudent = async (req, res) => {
          date_of_birth = EXCLUDED.date_of_birth,
          guardian_email = EXCLUDED.guardian_email
        RETURNING student_id, email, full_name, board, grade, date_of_birth, guardian_email, created_at`,
-      [email, studentName, password || null, board || null, grade || null, dob || null, parentEmail || null]
+      [cleanEmail, studentName, password || null, board || null, grade || null, dob || null, parentEmail || null]
     );
 
-    console.log(`[Database] Student profile saved to PostgreSQL (twin_db): ${email}`);
+    console.log(`[Database] Student profile saved to PostgreSQL (twin_db): ${cleanEmail}`);
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
     console.error('Error saving student to PostgreSQL:', err);
@@ -48,13 +49,14 @@ exports.createStudent = async (req, res) => {
 // POST /api/login (Authentication against PostgreSQL)
 exports.loginStudent = async (req, res) => {
   const { email, password } = req.body;
+  const cleanEmail = email ? email.trim().toLowerCase() : '';
 
-  if (!email || !password) {
+  if (!cleanEmail || !password) {
     return res.status(400).json({ success: false, error: 'Email and password are required' });
   }
 
   try {
-    const result = await db.query('SELECT * FROM students WHERE email = $1', [email]);
+    const result = await db.query('SELECT * FROM students WHERE LOWER(TRIM(email)) = $1', [cleanEmail]);
     if (result.rows.length === 0) {
       return res.status(401).json({ success: false, error: 'No account found with this email. Please sign up first!' });
     }

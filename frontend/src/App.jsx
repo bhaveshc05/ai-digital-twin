@@ -76,6 +76,18 @@ function DevNav() {
   )
 }
 
+function InfoPage({ title, description }) {
+  return (
+    <div className="container py-5 text-light text-center" style={{ minHeight: '60vh' }}>
+      <div className="card bg-dark border-secondary p-5 mx-auto" style={{ maxWidth: '600px', borderRadius: '16px' }}>
+        <h2 className="fw-bold mb-3 text-info">{title}</h2>
+        <p className="lead text-muted mb-4">{description}</p>
+        <Link to="/" className="btn btn-outline-info px-4">Return Home</Link>
+      </div>
+    </div>
+  )
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -88,6 +100,12 @@ function App() {
         <Route path="/parents-dashboard" element={<ParentsOverview />} />
         <Route path="/library" element={<Library />} />
         <Route path="/test" element={<TestPage />} />
+        <Route path="/pricing" element={<InfoPage title="Pricing Plans" description="Flexible subscription tiers for individual students, schools, and tutoring institutions." />} />
+        <Route path="/faqs" element={<InfoPage title="Frequently Asked Questions" description="Find answers about AI Digital Twin, vector embeddings, performance tracking, and data security." />} />
+        <Route path="/about" element={<InfoPage title="About AI Digital Twin" description="Empowering every student with a personalized AI learning mentor and digital twin." />} />
+        <Route path="/features" element={<InfoPage title="Platform Features" description="Explore smart document ingestion, struggle prediction, personalized quizzes, and revision planning." />} />
+        <Route path="/forgotpassword" element={<InfoPage title="Password Recovery" description="Enter your email to receive a password reset link for your AI Digital Twin account." />} />
+        <Route path="*" element={<InfoPage title="Page Not Found" description="The page you are looking for does not exist or has been moved." />} />
       </Routes>
       <Footer />
     </BrowserRouter>
