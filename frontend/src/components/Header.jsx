@@ -27,6 +27,18 @@ const Header = () => {
             </li>
 
             <li>
+              <Link to="/library" className="nav-link nav-item-custom">
+                Library
+              </Link>
+            </li>
+
+            <li>
+              <Link to="/test" className="nav-link nav-item-custom">
+                Test Practice
+              </Link>
+            </li>
+
+            <li>
               <Link to="/parents-dashboard" className="nav-link nav-item-custom">
                 Parents Dashboard
               </Link>
@@ -54,18 +66,18 @@ const Header = () => {
           </form>
 
           <div>
-  <Link to="/Login">
-    <button className="btn btn-outline-light me-2 login-btn">
-      Login
-    </button>
-  </Link>
+            <Link to="/login">
+              <button className="btn btn-outline-light me-2 login-btn">
+                Login
+              </button>
+            </Link>
 
-  <Link to="/Signup">
-    <button className="btn btn-outline-light me-2 signup-btn">
-      Sign Up
-    </button>
-  </Link>
-</div>
+            <Link to="/signup">
+              <button className="btn btn-outline-light me-2 signup-btn">
+                Sign Up
+              </button>
+            </Link>
+          </div>
 
         </div>
       </div>

@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import Column, String, Text, ForeignKey, ARRAY, DateTime, func
+from sqlalchemy import Column, String, Text, ForeignKey, ARRAY, DateTime, Date, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from pgvector.sqlalchemy import Vector
@@ -11,6 +11,11 @@ class Student(Base):
     student_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False)
     full_name = Column(String(255), nullable=False)
+    password_hash = Column(String(255), nullable=True)
+    board = Column(String(100), nullable=True)
+    grade = Column(String(50), nullable=True)
+    date_of_birth = Column(Date, nullable=True)
+    guardian_email = Column(String(255), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     chunks = relationship("KnowledgeChunk", back_populates="student", cascade="all, delete-orphan")

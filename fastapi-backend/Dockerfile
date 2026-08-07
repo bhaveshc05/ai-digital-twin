@@ -9,11 +9,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install python packages
-COPY requirements.txt .
+COPY fastapi-backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code & root database module
-COPY . /app/fastapi-backend
+COPY fastapi-backend /app/fastapi-backend
 COPY database /app/database
 
 WORKDIR /app/fastapi-backend
