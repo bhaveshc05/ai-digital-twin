@@ -4,6 +4,9 @@ from sqlalchemy import text
 from typing import List, Optional
 from pydantic import BaseModel
 import sys, os
+from app.services.pdf_processor import process_pdf
+from fastapi import UploadFile, File
+import shutil
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 from database.session import get_db
@@ -19,6 +22,14 @@ class ChunkCreate(BaseModel):
     student_id: str
     text_content: str
     topic_tags: Optional[List[str]] = []
+
+@router.post("/chunks")
+def create_chunk(chunk: ChunkCreate, db: Session = Depends(get_db)):
+    new_chunk = KnowledgeChunk(student_id=chunk.student_id, text_content=chunk.text_content, topic_tags=chunk.topic_tags)
+    db.add(new_chunk)
+    db.commit()
+    db.refresh(new_chunk)
+    return {"chunk_id": str(new_chunk.chunk_id), "student_id": str(new_chunk.student_id), "text_content": new_chunk.text_content, "topic_tags": new_chunk.topic_tags}
 
 @router.get("/students")
 def list_students(db: Session = Depends(get_db)):
@@ -37,3 +48,21 @@ def create_student(student: StudentCreate, db: Session = Depends(get_db)):
 def list_chunks(db: Session = Depends(get_db)):
     chunks = db.query(KnowledgeChunk).all()
     return {"chunks": [{"chunk_id": str(c.chunk_id), "student_id": str(c.student_id), "text_content": c.text_content, "topic_tags": c.topic_tags} for c in chunks]}
+
+
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+@router.post("/upload-pdf")
+async def upload_pdf(file: UploadFile = File(...)):
+    file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    extracted_text = process_pdf(file_path)
+
+    return {
+        "filename": file.filename,
+        "text": extracted_text
+    }
