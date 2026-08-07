@@ -8,7 +8,6 @@ import Signup from './pages/Signup'
 import ParentsOverview from './pages/ParentsOverview'
 import Library from './pages/Library'
 import TestPage from './pages/TestPage'
-import { checkNodeHealth, checkFastAPIHealth } from './services/api'
 
 function DevNav() {
   const [nodeStatus, setNodeStatus] = useState('checking')
@@ -95,20 +94,12 @@ function App() {
       <Header />
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/parents-dashboard" element={<ParentsOverview />} />
-        <Route path="/library" element={<Library />} />
-        <Route path="/test" element={<TestPage />} />
-        <Route path="/pricing" element={<InfoPage title="Pricing Plans" description="Flexible subscription tiers for individual students, schools, and tutoring institutions." />} />
-        <Route path="/faqs" element={<InfoPage title="Frequently Asked Questions" description="Find answers about AI Digital Twin, vector embeddings, performance tracking, and data security." />} />
-        <Route path="/about" element={<InfoPage title="About AI Digital Twin" description="Empowering every student with a personalized AI learning mentor and digital twin." />} />
-        <Route path="/features" element={<InfoPage title="Platform Features" description="Explore smart document ingestion, struggle prediction, personalized quizzes, and revision planning." />} />
-        <Route path="/forgotpassword" element={<InfoPage title="Password Recovery" description="Enter your email to receive a password reset link for your AI Digital Twin account." />} />
-        <Route path="*" element={<InfoPage title="Page Not Found" description="The page you are looking for does not exist or has been moved." />} />
-      </Routes>
-      <Footer />
-    </BrowserRouter>
+        <Route path="/Login" element={<Login />} />
+        <Route path="/parents-dashBoard" element={<ParentDashBoard />} />
+        <Route path="/Signup" element={<Signup />} />
+        </Routes>
+      <Footer/>
+    </>
   )
 }
 

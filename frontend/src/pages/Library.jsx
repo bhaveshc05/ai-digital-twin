@@ -7,14 +7,14 @@ import { initialLibraryItems } from '../data/mockData.js'
 
 const headerStyle = {
   height: 64,
-  backgroundColor: '#0e141a',
+  backgroundColor: '#121920',
   borderBottom: '1px solid #3e484f',
 }
 
 const canvasStyle = {
   minHeight: 'calc(100vh - 64px)',
   padding: 24,
-  backgroundColor: '#000000',
+  backgroundColor: '#0F172A',
 }
 
 function normalizeQuery(value) {
@@ -185,7 +185,7 @@ export default function Library() {
   }
 
   return (
-    <div className="min-vh-100 text-light" style={{ backgroundColor: '#000000' }}>
+    <div className="min-vh-100 text-light" style={{ backgroundColor: '#0F172A' }}>
       <header style={headerStyle}>
         <div className="d-flex h-100 align-items-center px-4">
           <div className="fw-bold" style={{ color: '#8ed5ff', fontSize: 24, lineHeight: 1, flex: '1 1 0' }}>

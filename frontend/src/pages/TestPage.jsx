@@ -8,7 +8,7 @@ const pageStyles = `
   background:
     radial-gradient(circle at top, rgba(56, 189, 248, 0.13), transparent 34%),
     radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.05), transparent 24%),
-    #000000;
+   #0F172A;
   color: #e2e8f0;
 }
 
@@ -21,7 +21,7 @@ const pageStyles = `
 
 .test-page-shell .hero-shell,
 .test-page-shell .panel-surface {
-  background: #121212;
+  background: #1E293B;
   border: 1px solid #262626;
   border-radius: 24px;
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.38);
@@ -79,7 +79,7 @@ const pageStyles = `
   min-height: 58px;
   padding: 14px 16px !important;
   border: 1px solid #262626 !important;
-  background: #0d0d0d !important;
+  background: #334155 !important;
   color: #e2e8f0 !important;
   text-align: left !important;
   transition: border-color 150ms ease, background 150ms ease, color 150ms ease, transform 150ms ease;
@@ -131,7 +131,7 @@ const pageStyles = `
 }
 
 .test-page-shell .mic-button.idle {
-  background: linear-gradient(180deg, #151515, #0b0b0b) !important;
+  background: linear-gradient(180deg, #334155, #1E293B) !important;
   color: #8a94a6 !important;
 }
 
@@ -803,7 +803,7 @@ export default function TestPage() {
 
         <ProgressBar
           now={questions.length ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0}
-          style={{ height: 10, backgroundColor: '#0b0b0b' }}
+          style={{ height: 10, backgroundColor: '#1E293B' }}
           className="mb-4"
         />
 

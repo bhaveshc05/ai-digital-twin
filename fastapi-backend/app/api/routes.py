@@ -6,6 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from typing import List, Optional
+from pydantic import BaseModel
+import sys, os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")))
 from database.session import get_db
@@ -29,22 +32,6 @@ class ChunkCreate(BaseModel):
     student_id: str
     text_content: str
     topic_tags: Optional[List[str]] = []
-
-class GenerateEmbeddingRequest(BaseModel):
-    text: Optional[str] = None
-    texts: Optional[List[str]] = None
-    provider: Optional[str] = None
-
-class SimilaritySearchRequest(BaseModel):
-    query: str
-    student_id: Optional[str] = None
-    top_k: Optional[int] = 5
-
-class EmbedRequest(BaseModel):
-    chunk_id: str
-    text_content: str
-
-# ── Student Endpoints ──
 
 @router.get("/students")
 def list_students(db: Session = Depends(get_db)):
@@ -140,58 +127,4 @@ def create_chunk(chunk: ChunkCreate, db: Session = Depends(get_db)):
 @router.get("/chunks")
 def list_chunks(db: Session = Depends(get_db)):
     chunks = db.query(KnowledgeChunk).all()
-    return {"chunks": [{
-        "chunk_id": str(c.chunk_id),
-        "student_id": str(c.student_id),
-        "text_content": c.text_content,
-        "topic_tags": c.topic_tags,
-        "has_embedding": c.embedding is not None,
-        "created_at": c.created_at
-    } for c in chunks]}
-
-@router.post("/embeddings/similarity-search")
-def similarity_search(payload: SimilaritySearchRequest, db: Session = Depends(get_db)):
-    """
-    Performs cosine similarity search across knowledge_chunks using pgvector.
-    """
-    service = get_embedding_service()
-    query_vector = service.generate_embedding(payload.query)
-
-    query = db.query(
-        KnowledgeChunk,
-        KnowledgeChunk.embedding.cosine_distance(query_vector).label("distance")
-    )
-
-    if payload.student_id:
-        query = query.filter(KnowledgeChunk.student_id == uuid.UUID(payload.student_id))
-
-    results = query.order_by(text("distance ASC")).limit(payload.top_k or 5).all()
-
-    return {
-        "query": payload.query,
-        "provider": service.provider,
-        "results": [{
-            "chunk_id": str(chunk.chunk_id),
-            "student_id": str(chunk.student_id),
-            "text_content": chunk.text_content,
-            "topic_tags": chunk.topic_tags,
-            "distance": float(dist) if dist is not None else None,
-            "similarity_score": round(1 - float(dist), 4) if dist is not None else None
-        } for chunk, dist in results]
-    }
-
-# ── Celery Background Tasks ──
-
-@router.post("/process-embedding")
-def trigger_embedding(payload: EmbedRequest):
-    task = process_chunk_embedding.delay(payload.chunk_id, payload.text_content)
-    return {"task_id": task.id, "status": "queued"}
-
-@router.get("/task-status/{task_id}")
-def get_task_status(task_id: str):
-    result = celery_app.AsyncResult(task_id)
-    return {
-        "task_id": task_id,
-        "status": result.status,
-        "result": result.result if result.ready() else None,
-    }
+    return {"chunks": [{"chunk_id": str(c.chunk_id), "student_id": str(c.student_id), "text_content": c.text_content, "topic_tags": c.topic_tags} for c in chunks]}
