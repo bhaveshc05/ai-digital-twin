@@ -1,8 +1,11 @@
-from app.services.embedding_service import generate_embedding
+from app.services.embedding_service import get_embedding_service
 
-text = "Artificial Intelligence is changing the world."
+service = get_embedding_service()
 
-embedding = generate_embedding(text)
+text = "Artificial Intelligence is a branch of computer science."
 
-print("Embedding Length:", len(embedding))
-print(embedding[:10])  # Print first 10 values
+embedding = service.generate_embedding(text)
+
+print("Embedding generated successfully")
+print("Vector dimension:", len(embedding))
+print("First 5 values:", embedding[:5])
