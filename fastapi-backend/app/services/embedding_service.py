@@ -3,6 +3,7 @@ import math
 import hashlib
 import logging
 from typing import List, Optional
+
 from langchain_core.embeddings import Embeddings
 
 logger = logging.getLogger(__name__)
@@ -58,7 +59,7 @@ class EmbeddingService:
                 from langchain_openai import OpenAIEmbeddings
                 model_name = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
                 logger.info(f"Initializing LangChain OpenAIEmbeddings with model '{model_name}'")
-                return OpenAIEmbeddings(model=model_name, openai_api_key=openai_key)
+                return OpenAIEmbeddings(model=model_name, api_key=openai_key)
             except Exception as e:
                 logger.warning(f"Failed to initialize OpenAIEmbeddings: {e}. Falling back to fallback embeddings.")
 
@@ -90,6 +91,9 @@ class EmbeddingService:
         """
         Generates a 1536-dimensional vector embedding for a single text input.
         """
+        if not text or not text.strip():
+            raise ValueError("Text cannot be empty.")
+            
         try:
             raw_vector = self.embeddings_model.embed_query(text)
             return self._normalize_dimension(raw_vector)
@@ -102,18 +106,32 @@ class EmbeddingService:
         """
         Generates 1536-dimensional vector embeddings for a list of texts in batch.
         """
+        if not texts:
+            return []
+
+        valid_texts = [text for text in texts if text and text.strip()]
+        
+        if not valid_texts:
+            raise ValueError("No valid text provided.")
+
         try:
-            raw_vectors = self.embeddings_model.embed_documents(texts)
+            raw_vectors = self.embeddings_model.embed_documents(valid_texts)
             return [self._normalize_dimension(vec) for vec in raw_vectors]
         except Exception as e:
             logger.error(f"Error generating batch embeddings via LangChain model: {e}. Using fallback.")
             fallback = FallbackEmbeddings()
-            return fallback.embed_documents(texts)
+            return fallback.embed_documents(valid_texts)
 
 
+# -----------------------------------------
+# Shared singleton instance
+# -----------------------------------------
 _embedding_service_instance = None
 
 def get_embedding_service() -> EmbeddingService:
+    """
+    Return the shared EmbeddingService instance.
+    """
     global _embedding_service_instance
     if _embedding_service_instance is None:
         _embedding_service_instance = EmbeddingService()
