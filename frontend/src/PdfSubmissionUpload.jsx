@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { FileText, Upload, X, CheckCircle2, AlertCircle, Paperclip } from "lucide-react";
+import { uploadPdfDocument, getTaskStatus } from "./services/api";
 
 /**
  * PdfSubmissionUpload
@@ -47,30 +48,69 @@ export default function PdfSubmissionUpload({
   const dragCounter = useRef(0);
   const inputRef = useRef(null);
 
-  // ---- REAL UPLOAD GOES HERE ------------------------------------------
-  // Replace this simulated progress with a real fetch/XHR upload call.
-  // Update item status to "done" on success or "error" with a message
-  // on failure, using setItems as shown below.
+  // ---- REAL UPLOAD & BACKGROUND TASK POLLING ----------------------------
   useEffect(() => {
-    const pending = items.filter((it) => it.status === "uploading");
+    const pending = items.filter((it) => it.status === "uploading" && !it.startedUpload);
     if (pending.length === 0) return;
 
-    const timers = pending.map((it) => {
-      return setInterval(() => {
-        setItems((prev) =>
-          prev.map((p) => {
-            if (p.id !== it.id || p.status !== "uploading") return p;
-            const next = Math.min(p.progress + 14 + Math.random() * 10, 100);
-            if (next >= 100) {
-              return { ...p, progress: 100, status: "done" };
-            }
-            return { ...p, progress: next };
-          })
-        );
-      }, 220);
-    });
+    pending.forEach(async (item) => {
+      // Mark as started upload to prevent duplicate dispatches
+      setItems((prev) =>
+        prev.map((p) => (p.id === item.id ? { ...p, startedUpload: true, progress: 20 } : p))
+      );
 
-    return () => timers.forEach(clearInterval);
+      try {
+        const uploadRes = await uploadPdfDocument(item.file);
+        if (uploadRes.status === "queued" || uploadRes.status === "success") {
+          const taskId = uploadRes.task_id;
+          setItems((prev) =>
+            prev.map((p) => (p.id === item.id ? { ...p, progress: 60, taskId } : p))
+          );
+
+          if (taskId === "inline-complete" || uploadRes.status === "success") {
+            setItems((prev) =>
+              prev.map((p) => (p.id === item.id ? { ...p, progress: 100, status: "done" } : p))
+            );
+            return;
+          }
+
+          // Poll task status until complete
+          const interval = setInterval(async () => {
+            const statusRes = await getTaskStatus(taskId);
+            if (statusRes.status === "SUCCESS" || statusRes.status === "SUCCESSFUL") {
+              clearInterval(interval);
+              setItems((prev) =>
+                prev.map((p) => (p.id === item.id ? { ...p, progress: 100, status: "done" } : p))
+              );
+            } else if (statusRes.status === "FAILURE") {
+              clearInterval(interval);
+              setItems((prev) =>
+                prev.map((p) =>
+                  p.id === item.id
+                    ? { ...p, status: "error", error: statusRes.error || "Background processing failed." }
+                    : p
+                )
+              );
+            }
+          }, 1500);
+
+        } else {
+          setItems((prev) =>
+            prev.map((p) =>
+              p.id === item.id
+                ? { ...p, status: "error", error: uploadRes.message || "Failed to upload PDF" }
+                : p
+            )
+          );
+        }
+      } catch (err) {
+        setItems((prev) =>
+          prev.map((p) =>
+            p.id === item.id ? { ...p, status: "error", error: err.message } : p
+          )
+        );
+      }
+    });
   }, [items]);
   // ----------------------------------------------------------------------
 
