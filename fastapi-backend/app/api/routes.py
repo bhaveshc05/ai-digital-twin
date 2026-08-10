@@ -33,6 +33,11 @@ class ChunkCreate(BaseModel):
     text_content: str
     topic_tags: Optional[List[str]] = []
 
+class GenerateEmbeddingRequest(BaseModel):
+    text: Optional[str] = None
+    texts: Optional[List[str]] = None
+    provider: Optional[str] = None
+
 @router.get("/students")
 def list_students(db: Session = Depends(get_db)):
     students = db.query(Student).all()
@@ -128,3 +133,17 @@ def create_chunk(chunk: ChunkCreate, db: Session = Depends(get_db)):
 def list_chunks(db: Session = Depends(get_db)):
     chunks = db.query(KnowledgeChunk).all()
     return {"chunks": [{"chunk_id": str(c.chunk_id), "student_id": str(c.student_id), "text_content": c.text_content, "topic_tags": c.topic_tags} for c in chunks]}
+
+@router.post("/process-embedding")
+def trigger_embedding(payload: ChunkCreate):
+    task = process_chunk_embedding.delay(payload.student_id, payload.text_content)
+    return {"task_id": task.id, "status": "queued"}
+
+@router.get("/task-status/{task_id}")
+def get_task_status(task_id: str):
+    result = celery_app.AsyncResult(task_id)
+    return {
+        "task_id": task_id,
+        "status": result.status,
+        "result": result.result if result.ready() else None,
+    }
