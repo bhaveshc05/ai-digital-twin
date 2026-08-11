@@ -1,34 +1,306 @@
 import uuid
-from sqlalchemy import Column, String, Text, ForeignKey, ARRAY, DateTime, Date, func
+
+from sqlalchemy import (
+    Column,
+    String,
+    Text,
+    ForeignKey,
+    ARRAY,
+    DateTime,
+    Date,
+    Integer,
+    Float,
+    func
+)
+
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from pgvector.sqlalchemy import Vector
+
 from database.session import Base
+
+
+# ============================================================
+# Student Model
+# ============================================================
 
 class Student(Base):
     __tablename__ = "students"
 
-    student_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    email = Column(String(255), unique=True, nullable=False)
-    full_name = Column(String(255), nullable=False)
-    password_hash = Column(String(255), nullable=True)
-    board = Column(String(100), nullable=True)
-    grade = Column(String(50), nullable=True)
-    date_of_birth = Column(Date, nullable=True)
-    guardian_email = Column(String(255), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    student_id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
+    )
 
-    chunks = relationship("KnowledgeChunk", back_populates="student", cascade="all, delete-orphan")
+    email = Column(
+        String(255),
+        unique=True,
+        nullable=False
+    )
 
+    full_name = Column(
+        String(255),
+        nullable=False
+    )
+
+    password_hash = Column(
+        String(255),
+        nullable=True
+    )
+
+    board = Column(
+        String(100),
+        nullable=True
+    )
+
+    grade = Column(
+        String(50),
+        nullable=True
+    )
+
+    date_of_birth = Column(
+        Date,
+        nullable=True
+    )
+
+    guardian_email = Column(
+        String(255),
+        nullable=True
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+
+    # Student's uploaded knowledge chunks
+    chunks = relationship(
+        "KnowledgeChunk",
+        back_populates="student",
+        cascade="all, delete-orphan"
+    )
+
+    # Student's mastery records
+    mastery_records = relationship(
+        "StudentMastery",
+        back_populates="student",
+        cascade="all, delete-orphan"
+    )
+
+    # Student's tests
+    tests = relationship(
+        "Test",
+        back_populates="student",
+        cascade="all, delete-orphan"
+    )
+
+
+# ============================================================
+# Knowledge Chunk Model
+# ============================================================
 
 class KnowledgeChunk(Base):
     __tablename__ = "knowledge_chunks"
 
-    chunk_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    student_id = Column(UUID(as_uuid=True), ForeignKey("students.student_id", ondelete="CASCADE"))
-    text_content = Column(Text, nullable=False)
-    topic_tags = Column(ARRAY(String(100)))
-    embedding = Column(Vector(1536))
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    chunk_id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
+    )
 
-    student = relationship("Student", back_populates="chunks")
+    student_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "students.student_id",
+            ondelete="CASCADE"
+        ),
+        nullable=False
+    )
+
+    text_content = Column(
+        Text,
+        nullable=False
+    )
+
+    topic_tags = Column(
+        ARRAY(String(100))
+    )
+
+    embedding = Column(
+        Vector(1536)
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+
+    student = relationship(
+        "Student",
+        back_populates="chunks"
+    )
+
+
+# ============================================================
+# Student Mastery Model
+# ============================================================
+
+class StudentMastery(Base):
+    __tablename__ = "student_mastery"
+
+    mastery_id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
+    )
+
+    student_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "students.student_id",
+            ondelete="CASCADE"
+        ),
+        nullable=False
+    )
+
+    subject = Column(
+        String(100),
+        nullable=False
+    )
+
+    topic = Column(
+        String(255),
+        nullable=False
+    )
+
+    correct_answers = Column(
+        Integer,
+        default=0,
+        nullable=False
+    )
+
+    total_questions = Column(
+        Integer,
+        default=0,
+        nullable=False
+    )
+
+    mastery_score = Column(
+        Float,
+        default=0.0,
+        nullable=False
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now()
+    )
+
+    student = relationship(
+        "Student",
+        back_populates="mastery_records"
+    )
+
+
+# ============================================================
+# Test Model
+# ============================================================
+
+class Test(Base):
+    __tablename__ = "tests"
+
+    test_id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
+    )
+
+    student_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "students.student_id",
+            ondelete="CASCADE"
+        ),
+        nullable=False
+    )
+
+    title = Column(
+        String(255),
+        nullable=False
+    )
+
+    subject = Column(
+        String(100),
+        nullable=False
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+
+    student = relationship(
+        "Student",
+        back_populates="tests"
+    )
+
+    questions = relationship(
+        "TestQuestion",
+        back_populates="test",
+        cascade="all, delete-orphan"
+    )
+
+
+# ============================================================
+# Test Question Model
+# ============================================================
+
+class TestQuestion(Base):
+    __tablename__ = "test_questions"
+
+    question_id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
+    )
+
+    test_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "tests.test_id",
+            ondelete="CASCADE"
+        ),
+        nullable=False
+    )
+
+    topic = Column(
+        String(255),
+        nullable=False
+    )
+
+    question_text = Column(
+        Text,
+        nullable=False
+    )
+
+    correct_answer = Column(
+        String(255),
+        nullable=False
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+
+    test = relationship(
+        "Test",
+        back_populates="questions"
+    )
