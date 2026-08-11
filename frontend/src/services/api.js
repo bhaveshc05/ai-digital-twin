@@ -84,3 +84,38 @@ export async function fetchFastAPIChunks() {
     return { chunks: [] }
   }
 }
+
+export async function uploadPdfDocument(file, studentId = null) {
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    if (studentId) {
+      formData.append('student_id', studentId)
+    }
+
+    const res = await fetch(`${FASTAPI_URL}/api/v1/upload-pdf`, {
+      method: 'POST',
+      body: formData,
+    })
+
+    const data = await res.json()
+    if (!res.ok) {
+      throw new Error(data.detail || `HTTP ${res.status}`)
+    }
+    return data
+  } catch (err) {
+    console.error('Error uploading PDF:', err)
+    return { status: 'error', message: err.message }
+  }
+}
+
+export async function getTaskStatus(taskId) {
+  try {
+    const res = await fetch(`${FASTAPI_URL}/api/v1/task-status/${taskId}`)
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    return await res.json()
+  } catch (err) {
+    console.error('Error checking task status:', err)
+    return { status: 'FAILURE', error: err.message }
+  }
+}

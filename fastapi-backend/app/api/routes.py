@@ -1,8 +1,9 @@
 import sys
 import os
 import uuid
+import base64
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -26,6 +27,9 @@ from app.services.embedding_service import (
     EmbeddingService
 )
 from worker.tasks import process_chunk_embedding
+from database.models import Student, KnowledgeChunk
+from app.services.embedding_service import get_embedding_service, EmbeddingService
+from worker.tasks import process_chunk_embedding, process_pdf_ingestion
 from worker.celery_app import celery_app
 
 router = APIRouter()
@@ -406,10 +410,54 @@ def trigger_embedding(
     }
 
 
+@router.post("/upload-pdf")
+async def upload_pdf_file(
+    file: UploadFile = File(...),
+    student_id: Optional[str] = Form(None)
+):
+    """
+    Accepts a PDF document upload, encodes bytes, and queues an asynchronous background task (Celery/Redis)
+    for text extraction (pdfplumber + OCR), LangChain text splitting, vector embedding, and pgvector storage.
+    """
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported.")
+
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    b64_content = base64.b64encode(file_bytes).decode("utf-8")
+
+    # Queue background task
+    try:
+        task = process_pdf_ingestion.delay(b64_content, file.filename, student_id)
+        task_id = task.id
+    except Exception as err:
+        # Fallback inline processing if Celery broker is offline
+        print(f"[Fallback] Executing inline PDF processing because Celery broker unavailable: {err}")
+        res = process_pdf_ingestion(b64_content, file.filename, student_id)
+        return {
+            "status": "success",
+            "task_id": "inline-complete",
+            "filename": file.filename,
+            "result": res
+        }
+
+    return {
+        "status": "queued",
+        "task_id": task_id,
+        "filename": file.filename,
+        "message": "PDF queued for background extraction, chunking, and vector embedding!"
+    }
+
 @router.get("/task-status/{task_id}")
 def get_task_status(
     task_id: str
 ):
+def get_task_status(task_id: str):
+    if task_id == "inline-complete":
+        return {"task_id": task_id, "status": "SUCCESS", "result": {"status": "success"}}
+
     result = celery_app.AsyncResult(task_id)
 
     return {
