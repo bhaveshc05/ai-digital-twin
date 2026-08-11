@@ -38,6 +38,10 @@ from worker.tasks import (
     process_chunk_embedding,
     process_pdf_ingestion,
 )
+from database.models import Student, KnowledgeChunk, Test, TestQuestion
+from app.services.embedding_service import get_embedding_service, EmbeddingService
+from app.services.mastery_service import update_mastery_score
+from worker.tasks import process_chunk_embedding, process_pdf_ingestion
 from worker.celery_app import celery_app
 
 
@@ -74,6 +78,412 @@ class MasteryUpdateRequest(BaseModel):
     topic: str
     is_correct: bool
 
+
+# Student Endpoints
+
+@router.get("/students")
+def list_students(db: Session = Depends(get_db)):
+    students = db.query(Student).all()
+
+    return {
+        "students": [
+            {
+                "student_id": str(s.student_id),
+                "email": s.email,
+                "full_name": s.full_name,
+                "board": s.board,
+                "grade": s.grade,
+                "date_of_birth": (
+                    str(s.date_of_birth)
+                    if s.date_of_birth
+                    else None
+                ),
+                "guardian_email": s.guardian_email,
+                "created_at": s.created_at,
+            }
+            for s in students
+        ]
+    }
+
+
+@router.post("/students")
+def create_student(
+    student: StudentCreate,
+    db: Session = Depends(get_db),
+):
+    new_student = Student(
+        email=student.email,
+        full_name=student.full_name,
+        board=student.board,
+        grade=student.grade,
+        guardian_email=student.guardian_email,
+    )
+
+    db.add(new_student)
+    db.commit()
+    db.refresh(new_student)
+
+    return {
+        "student_id": str(new_student.student_id),
+        "email": new_student.email,
+        "full_name": new_student.full_name,
+        "board": new_student.board,
+        "grade": new_student.grade,
+        "guardian_email": new_student.guardian_email,
+    }
+
+
+# Student Mastery Endpoint
+
+@router.post("/mastery/update")
+def update_mastery(
+    payload: MasteryUpdateRequest,
+    db: Session = Depends(get_db),
+):
+    try:
+        student_id = uuid.UUID(payload.student_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid student_id",
+        )
+
+    student = (
+        db.query(Student)
+        .filter(Student.student_id == student_id)
+        .first()
+    )
+
+    if student is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Student not found",
+        )
+
+    mastery = update_mastery_score(
+        db=db,
+        student_id=student_id,
+        subject=payload.subject,
+        topic=payload.topic,
+        is_correct=payload.is_correct,
+    )
+
+    return {
+        "mastery_id": str(mastery.mastery_id),
+        "student_id": str(mastery.student_id),
+        "subject": mastery.subject,
+        "topic": mastery.topic,
+        "correct_answers": mastery.correct_answers,
+        "total_questions": mastery.total_questions,
+        "mastery_score": mastery.mastery_score,
+        "mastery_percentage": round(
+            mastery.mastery_score * 100,
+            2,
+        ),
+        "message": "Mastery score updated successfully",
+    }
+
+
+# Test Creation Endpoint
+
+@router.post("/tests")
+def create_test(
+    payload: TestCreate,
+    db: Session = Depends(get_db),
+):
+    try:
+        student_id = uuid.UUID(payload.student_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid student_id",
+        )
+
+    student = (
+        db.query(Student)
+        .filter(Student.student_id == student_id)
+        .first()
+    )
+
+    if student is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Student not found",
+        )
+
+    if not payload.questions:
+        raise HTTPException(
+            status_code=400,
+            detail="Test must contain at least one question",
+        )
+
+    new_test = Test(
+        student_id=student_id,
+        title=payload.title,
+        subject=payload.subject,
+    )
+
+    db.add(new_test)
+    db.flush()
+
+    for question in payload.questions:
+        new_question = TestQuestion(
+            test_id=new_test.test_id,
+            topic=question.topic,
+            question_text=question.question_text,
+            correct_answer=question.correct_answer,
+        )
+
+        db.add(new_question)
+
+    db.commit()
+    db.refresh(new_test)
+
+    return {
+        "test_id": str(new_test.test_id),
+        "student_id": str(new_test.student_id),
+        "title": new_test.title,
+        "subject": new_test.subject,
+        "questions": [
+            {
+                "question_id": str(question.question_id),
+                "topic": question.topic,
+                "question_text": question.question_text,
+            }
+            for question in new_test.questions
+        ],
+        "message": "Test created successfully",
+    }
+
+
+# Embedding Endpoints
+
+@router.post("/embeddings/generate")
+def generate_embeddings(
+    payload: GenerateEmbeddingRequest,
+):
+    service = (
+        get_embedding_service()
+        if not payload.provider
+        else EmbeddingService(provider=payload.provider)
+    )
+
+    if payload.text:
+        embedding = service.generate_embedding(
+            payload.text
+        )
+
+        return {
+            "provider": service.provider,
+            "dimension": len(embedding),
+            "embedding": embedding,
+        }
+
+    elif payload.texts:
+        embeddings = service.generate_embeddings_batch(
+            payload.texts
+        )
+
+        return {
+            "provider": service.provider,
+            "count": len(embeddings),
+            "dimension": (
+                len(embeddings[0])
+                if embeddings
+                else 0
+            ),
+            "embeddings": embeddings,
+        }
+
+    raise HTTPException(
+        status_code=400,
+        detail=(
+            "Either 'text' or 'texts' field "
+            "must be provided."
+        ),
+    )
+
+
+# Knowledge Chunk Endpoints
+
+@router.post("/chunks")
+def create_chunk(
+    chunk: ChunkCreate,
+    db: Session = Depends(get_db),
+):
+    try:
+        student_id = uuid.UUID(chunk.student_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid student_id",
+        )
+
+    student = (
+        db.query(Student)
+        .filter(Student.student_id == student_id)
+        .first()
+    )
+
+    if student is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Student not found",
+        )
+
+    service = get_embedding_service()
+
+    embedding = service.generate_embedding(
+        chunk.text_content
+    )
+
+    new_chunk = KnowledgeChunk(
+        student_id=student_id,
+        text_content=chunk.text_content,
+        topic_tags=chunk.topic_tags or [],
+        embedding=embedding,
+    )
+
+    db.add(new_chunk)
+    db.commit()
+    db.refresh(new_chunk)
+
+    return {
+        "chunk_id": str(new_chunk.chunk_id),
+        "student_id": str(new_chunk.student_id),
+        "text_content": new_chunk.text_content,
+        "topic_tags": new_chunk.topic_tags,
+        "embedding_dimension": (
+            len(new_chunk.embedding)
+            if new_chunk.embedding is not None
+            else 0
+        ),
+        "provider": service.provider,
+        "created_at": new_chunk.created_at,
+    }
+
+
+@router.get("/chunks")
+def list_chunks(
+    db: Session = Depends(get_db),
+):
+    chunks = db.query(KnowledgeChunk).all()
+
+    return {
+        "chunks": [
+            {
+                "chunk_id": str(c.chunk_id),
+                "student_id": str(c.student_id),
+                "text_content": c.text_content,
+                "topic_tags": c.topic_tags,
+            }
+            for c in chunks
+        ]
+    }
+
+
+# Celery Embedding Endpoints
+
+@router.post("/process-embedding")
+def trigger_embedding(
+    payload: ChunkCreate,
+):
+    task = process_chunk_embedding.delay(
+        payload.student_id,
+        payload.text_content,
+    )
+
+    return {
+        "task_id": task.id,
+        "status": "queued",
+    }
+
+
+@router.post("/upload-pdf")
+async def upload_pdf_file(
+    file: UploadFile = File(...),
+    student_id: Optional[str] = Form(None),
+):
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=400,
+            detail="Only PDF files are supported.",
+        )
+
+    file_bytes = await file.read()
+
+    if not file_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded file is empty.",
+        )
+
+    b64_content = base64.b64encode(
+        file_bytes
+    ).decode("utf-8")
+
+    try:
+        task = process_pdf_ingestion.delay(
+            b64_content,
+            file.filename,
+            student_id,
+        )
+
+        return {
+            "status": "queued",
+            "task_id": task.id,
+            "filename": file.filename,
+            "message": (
+                "PDF queued for background extraction, "
+                "chunking, and vector embedding!"
+            ),
+        }
+
+    except Exception as err:
+        print(
+            "[Fallback] Executing inline PDF processing "
+            f"because Celery broker unavailable: {err}"
+        )
+
+        res = process_pdf_ingestion(
+            b64_content,
+            file.filename,
+            student_id,
+        )
+
+        return {
+            "status": "success",
+            "task_id": "inline-complete",
+            "filename": file.filename,
+            "result": res,
+        }
+
+
+@router.get("/task-status/{task_id}")
+def get_task_status(task_id: str):
+    if task_id == "inline-complete":
+        return {
+            "task_id": task_id,
+            "status": "SUCCESS",
+            "result": {
+                "status": "success",
+            },
+        }
+
+    result = celery_app.AsyncResult(task_id)
+
+    return {
+        "task_id": task_id,
+        "status": result.status,
+        "result": (
+            result.result
+            if result.ready()
+            else None
+        ),
+    }
+
+
+# Test Request Schemas
 
 class TestQuestionCreate(BaseModel):
     topic: str
