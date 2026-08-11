@@ -29,7 +29,7 @@ from app.services.embedding_service import (
 from worker.tasks import process_chunk_embedding
 from database.models import Student, KnowledgeChunk
 from app.services.embedding_service import get_embedding_service, EmbeddingService
-from worker.tasks import process_chunk_embedding, process_pdf_ingestion
+from worker.tasks import process_chunk_embedding
 from worker.celery_app import celery_app
 
 router = APIRouter()
@@ -455,9 +455,6 @@ def get_task_status(
     task_id: str
 ):
 def get_task_status(task_id: str):
-    if task_id == "inline-complete":
-        return {"task_id": task_id, "status": "SUCCESS", "result": {"status": "success"}}
-
     result = celery_app.AsyncResult(task_id)
 
     return {
