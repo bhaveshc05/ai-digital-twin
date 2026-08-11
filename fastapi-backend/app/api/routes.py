@@ -3,7 +3,6 @@ import os
 import uuid
 import base64
 from typing import List, Optional
-
 from fastapi import (
     APIRouter,
     Depends,
@@ -38,7 +37,7 @@ from worker.tasks import (
     process_chunk_embedding,
     process_pdf_ingestion,
 )
-from database.models import Student, KnowledgeChunk, Test, TestQuestion
+from worker.celery_app import celery_app
 from app.services.embedding_service import get_embedding_service, EmbeddingService
 from app.services.mastery_service import update_mastery_score
 from worker.tasks import process_chunk_embedding, process_pdf_ingestion
@@ -63,6 +62,7 @@ class StudentCreate(BaseModel):
 class ChunkCreate(BaseModel):
     student_id: str
     text_content: str
+
     topic_tags: Optional[List[str]] = None
 
 
@@ -78,8 +78,26 @@ class MasteryUpdateRequest(BaseModel):
     topic: str
     is_correct: bool
 
+# ============================================================
+# Test Request Schemas
+# ============================================================
 
+class TestQuestionCreate(BaseModel):
+    topic: str
+    question_text: str
+    correct_answer: str
+
+
+class TestCreate(BaseModel):
+    student_id: str
+    title: str
+    subject: str
+    questions: List[TestQuestionCreate]
+
+
+# ============================================================
 # Student Endpoints
+# ============================================================
 
 @router.get("/students")
 def list_students(db: Session = Depends(get_db)):
@@ -132,8 +150,9 @@ def create_student(
         "guardian_email": new_student.guardian_email,
     }
 
-
+# ============================================================
 # Student Mastery Endpoint
+# ============================================================
 
 @router.post("/mastery/update")
 def update_mastery(
@@ -184,7 +203,10 @@ def update_mastery(
     }
 
 
+
+# ============================================================
 # Test Creation Endpoint
+# ============================================================
 
 @router.post("/tests")
 def create_test(
@@ -256,7 +278,10 @@ def create_test(
     }
 
 
+
+# ============================================================
 # Embedding Endpoints
+# ============================================================
 
 @router.post("/embeddings/generate")
 def generate_embeddings(
@@ -304,8 +329,10 @@ def generate_embeddings(
     )
 
 
-# Knowledge Chunk Endpoints
 
+# ============================================================
+# Knowledge Chunk Endpoints
+# ============================================================
 @router.post("/chunks")
 def create_chunk(
     chunk: ChunkCreate,
@@ -382,7 +409,10 @@ def list_chunks(
     }
 
 
+
+# ============================================================
 # Celery Embedding Endpoints
+# ============================================================
 
 @router.post("/process-embedding")
 def trigger_embedding(
@@ -399,11 +429,110 @@ def trigger_embedding(
     }
 
 
+# ============================================================
+# PDF Upload Endpoint
+# ============================================================
+
 @router.post("/upload-pdf")
 async def upload_pdf_file(
     file: UploadFile = File(...),
-    student_id: Optional[str] = Form(None),
+    student_id: Optional[str] = Form(None)
 ):
+    """
+    Accepts a PDF document upload, encodes bytes,
+    and queues an asynchronous background task
+    (Celery/Redis) for text extraction (pdfplumber + OCR),
+    LangChain text splitting, vector embedding,
+    and pgvector storage.
+    """
+
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=400,
+            detail="Only PDF files are supported."
+        )
+
+    file_bytes = await file.read()
+
+    if not file_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded file is empty."
+        )
+
+    b64_content = base64.b64encode(
+        file_bytes
+    ).decode("utf-8")
+
+    # Queue background task
+    try:
+        task = process_pdf_ingestion.delay(
+            b64_content,
+            file.filename,
+            student_id
+        )
+
+        task_id = task.id
+
+    except Exception as err:
+
+        # Fallback inline processing if Celery broker is offline
+        print(
+            "[Fallback] Executing inline PDF processing "
+            f"because Celery broker unavailable: {err}"
+        )
+
+        res = process_pdf_ingestion(
+            b64_content,
+            file.filename,
+            student_id
+        )
+
+        return {
+            "status": "success",
+            "task_id": "inline-complete",
+            "filename": file.filename,
+            "result": res
+        }
+
+    return {
+        "status": "queued",
+        "task_id": task_id,
+        "filename": file.filename,
+        "message": (
+            "PDF queued for background extraction, "
+            "chunking, and vector embedding!"
+        )
+    }
+
+
+# ============================================================
+# Celery Task Status Endpoint
+# ============================================================
+
+@router.get("/task-status/{task_id}")
+def get_task_status(task_id: str):
+    if task_id == "inline-complete":
+        return {
+            "task_id": task_id,
+            "status": "SUCCESS",
+            "result": {
+                "status": "success",
+            },
+        }
+
+    result = celery_app.AsyncResult(task_id)
+
+    return {
+        "task_id": task_id,
+        "status": result.status,
+        "result": (
+            result.result
+            if result.ready()
+            else None
+        ),
+    }
+
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(
             status_code=400,
@@ -482,7 +611,6 @@ def get_task_status(task_id: str):
         ),
     }
 
-
 # Test Request Schemas
 
 class TestQuestionCreate(BaseModel):
@@ -497,6 +625,9 @@ class TestCreate(BaseModel):
     subject: str
     questions: List[TestQuestionCreate]
 
+# ============================================================
+# Test Submission Request Schemas
+# ============================================================
 
 class TestAnswer(BaseModel):
     question_id: str
@@ -693,7 +824,6 @@ def create_test(
 # ============================================================
 # Test Submission + Automatic Mastery Update
 # ============================================================
-
 @router.post("/tests/{test_id}/submit")
 def submit_test(
     test_id: str,
@@ -796,8 +926,8 @@ def submit_test(
         "total_questions": total_questions,
         "score_percentage": round(
             score_percentage,
-            2,
-        ),
+            2
+                            ),
         "results": results,
         "message": (
             "Test submitted successfully "
