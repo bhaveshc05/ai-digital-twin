@@ -11,6 +11,7 @@ from fastapi import (
     UploadFile,
     Form,
 )
+from fastapi import APIRouter, Depends, HTTPException, File, UploadFile, Form
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -38,6 +39,8 @@ from worker.tasks import (
     process_pdf_ingestion,
 )
 from worker.celery_app import celery_app
+from database.models import Student, KnowledgeChunk, Document, StudentMastery, Test
+from app.services.llm_service import get_llm_service
 from app.services.embedding_service import get_embedding_service, EmbeddingService
 from app.services.mastery_service import update_mastery_score
 from worker.tasks import process_chunk_embedding, process_pdf_ingestion
@@ -182,6 +185,7 @@ def update_mastery(
     mastery = update_mastery_score(
         db=db,
         student_id=student_id,
+                document_id=new_doc.document_id,
         subject=payload.subject,
         topic=payload.topic,
         is_correct=payload.is_correct,
@@ -241,6 +245,7 @@ def create_test(
 
     new_test = Test(
         student_id=student_id,
+                document_id=new_doc.document_id,
         title=payload.title,
         subject=payload.subject,
     )
@@ -366,6 +371,7 @@ def create_chunk(
 
     new_chunk = KnowledgeChunk(
         student_id=student_id,
+                document_id=new_doc.document_id,
         text_content=chunk.text_content,
         topic_tags=chunk.topic_tags or [],
         embedding=embedding,
@@ -1173,3 +1179,38 @@ def get_task_status(task_id: str):
             else None
         ),
     }
+@router.get("/documents/{student_id}")
+def get_documents(student_id: str, db: Session = Depends(get_db)):
+    docs = db.query(Document).filter(Document.student_id == student_id).all()
+    return {"documents": [{"document_id": str(d.document_id), "filename": d.filename, "created_at": d.created_at} for d in docs]}
+
+@router.get("/mastery/{student_id}")
+def get_mastery(student_id: str, db: Session = Depends(get_db)):
+    records = db.query(StudentMastery).filter(StudentMastery.student_id == student_id).all()
+    return {"mastery": [{"subject": r.subject, "topic": r.topic, "score": r.mastery_score} for r in records]}
+
+@router.get("/tests/{student_id}")
+def get_tests(student_id: str, db: Session = Depends(get_db)):
+    tests = db.query(Test).filter(Test.student_id == student_id).all()
+    return {"tests": [{"test_id": str(t.test_id), "title": t.title, "subject": t.subject} for t in tests]}
+
+class GenerateTestRequest(BaseModel):
+    student_id: str
+    document_id: Optional[str] = None
+    topic: Optional[str] = None
+    num_questions: int = 5
+
+@router.post("/tests/generate")
+def generate_test(req: GenerateTestRequest, db: Session = Depends(get_db)):
+    llm = get_llm_service()
+    
+    context = ""
+    if req.document_id:
+        chunks = db.query(KnowledgeChunk).filter(KnowledgeChunk.document_id == req.document_id).all()
+        context = " ".join([c.text_content for c in chunks])
+    elif req.topic:
+        chunks = db.query(KnowledgeChunk).filter(KnowledgeChunk.student_id == req.student_id).limit(10).all()
+        context = " ".join([c.text_content for c in chunks])
+        
+    questions = llm.generate_test_questions(context, req.num_questions)
+    return {"questions": questions}

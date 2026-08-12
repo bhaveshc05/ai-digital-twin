@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useContext } from 'react'
+import { AuthContext } from '../context/AuthContext'
 import { Badge, Button, Card, Col, Collapse, Form, ProgressBar, Row, Stack } from 'react-bootstrap'
 import { practiceQuestionBank, practiceSubjects } from '../data/mockData.js'
 
@@ -394,6 +395,7 @@ function ResultsShell({ title, eyebrow, summaryCards, footerNote, children, onRe
 }
 
 export default function TestPage() {
+  const { user } = useContext(AuthContext)
   const [sessionState, setSessionState] = useState('setup')
   const [mode, setMode] = useState(null)
   const [selectedSubjects, setSelectedSubjects] = useState([])
@@ -438,20 +440,54 @@ export default function TestPage() {
     ? selectedSubjects.map((subjectId) => subjectMap.get(subjectId)?.name).filter(Boolean)
     : practiceSubjects.map((subject) => subject.name)
 
-  const initializeSession = () => {
-    const generatedQuestions = buildGeneratedQuestions(selectedSubjects, questionCount)
-
-    setQuestions(generatedQuestions)
-    setAnswers({})
-    setCurrentQuestionIndex(0)
-    setTranscript([])
-    setMicState('idle')
-    setQuizResults(null)
-    setVivaResults(null)
-    setExpandedRows({})
-    setSessionStartedAt(Date.now())
-    setSessionCompletedAt(null)
-    setSessionState(mode === 'quiz' ? 'quiz' : 'viva')
+  const initializeSession = async () => {
+    try {
+      const topic = selectedSubjectNames.length ? selectedSubjectNames.join(", ") : "General";
+      const studentId = user?.student_id || user?.id || "unknown";
+      
+      const res = await fetch('http://localhost:8000/tests/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: studentId,
+          num_questions: questionCount,
+          topic: topic
+        })
+      });
+      const data = await res.json();
+      
+      let generatedQuestions = data.questions || [];
+      if (!generatedQuestions.length) {
+        generatedQuestions = buildGeneratedQuestions(selectedSubjects, questionCount);
+      }
+      
+      setQuestions(generatedQuestions);
+      setAnswers({});
+      setCurrentQuestionIndex(0);
+      setTranscript([]);
+      setMicState('idle');
+      setQuizResults(null);
+      setVivaResults(null);
+      setExpandedRows({});
+      setSessionStartedAt(Date.now());
+      setSessionCompletedAt(null);
+      setSessionState(mode === 'quiz' ? 'quiz' : 'viva');
+    } catch (e) {
+      console.error("Failed to generate test questions", e);
+      // Fallback
+      const generatedQuestions = buildGeneratedQuestions(selectedSubjects, questionCount)
+      setQuestions(generatedQuestions)
+      setAnswers({})
+      setCurrentQuestionIndex(0)
+      setTranscript([])
+      setMicState('idle')
+      setQuizResults(null)
+      setVivaResults(null)
+      setExpandedRows({})
+      setSessionStartedAt(Date.now())
+      setSessionCompletedAt(null)
+      setSessionState(mode === 'quiz' ? 'quiz' : 'viva')
+    }
   }
 
   const resetToSetup = () => {
@@ -486,12 +522,32 @@ export default function TestPage() {
     setAnswers((prev) => ({ ...prev, [questionId]: optionId }))
   }
 
-  const handleSubmitQuiz = () => {
+  const handleSubmitQuiz = async () => {
     const completedAt = Date.now()
     const result = createQuizResults(questions, answers, sessionStartedAt, completedAt)
     setQuizResults(result)
     setSessionCompletedAt(completedAt)
     setSessionState('results')
+
+    if (user && (user.student_id || user.id)) {
+      const studentId = user.student_id || user.id;
+      for (const item of result.breakdown) {
+        try {
+          await fetch('http://localhost:8000/mastery/update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              student_id: studentId,
+              subject: item.subjectName || "General",
+              topic: item.category || "General",
+              is_correct: item.isCorrect
+            })
+          });
+        } catch (e) {
+          console.error("Failed to update mastery", e);
+        }
+      }
+    }
   }
 
   const completedExchangesCount = useMemo(() => {

@@ -81,6 +81,14 @@ class Student(Base):
         cascade="all, delete-orphan"
     )
 
+    # Student's documents
+    documents = relationship(
+        "Document",
+        back_populates="student",
+        cascade="all, delete-orphan"
+    )
+
+
     # Student's mastery records
     mastery_records = relationship(
         "StudentMastery",
@@ -140,6 +148,12 @@ class KnowledgeChunk(Base):
         "Student",
         back_populates="chunks"
     )
+
+    document = relationship(
+        "Document",
+        back_populates="chunks"
+    )
+
 
 
 # ============================================================
@@ -304,3 +318,33 @@ class TestQuestion(Base):
         "Test",
         back_populates="questions"
     )
+
+
+# ============================================================
+# Document Model
+# ============================================================
+
+class Document(Base):
+    __tablename__ = "documents"
+
+    document_id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
+    )
+
+    student_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("students.student_id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    filename = Column(String(255), nullable=False)
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+
+    student = relationship("Student", back_populates="documents")
+    chunks = relationship("KnowledgeChunk", back_populates="document", cascade="all, delete-orphan")
