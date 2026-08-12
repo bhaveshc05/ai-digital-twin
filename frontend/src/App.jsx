@@ -8,6 +8,8 @@ import Signup from './pages/Signup'
 import ParentsOverview from './pages/ParentsOverview'
 import Library from './pages/Library'
 import TestPage from './pages/TestPage'
+import { AuthProvider } from './context/AuthContext'
+import ProtectedRoute from './components/ProtectedRoute'
 
 
 function InfoPage({ title, description }) {
@@ -43,31 +45,33 @@ function InfoPage({ title, description }) {
 
 function App() {
   return (
-    <BrowserRouter>
-      
-      <Header />
-      
+    <AuthProvider>
+      <BrowserRouter>
+        
+        <Header />
+        
 
-      <Routes>
-        <Route path="/" element={<Home />} />
+        <Routes>
+          <Route path="/" element={<Home />} />
 
-        <Route path="/Login" element={<Login />} />
+          <Route path="/Login" element={<Login />} />
 
-        {/* Parents Dashboard */}
-        <Route
-          path="/parents-dashboard"
-          element={<ParentsOverview />}
-        />
+          {/* Parents Dashboard */}
+          <Route
+            path="/parents-dashboard"
+            element={<ProtectedRoute><ParentsOverview /></ProtectedRoute>}
+          />
 
-        <Route path="/Signup" element={<Signup />} />
+          <Route path="/Signup" element={<Signup />} />
 
-        <Route path="/library" element={<Library />} />
+          <Route path="/library" element={<ProtectedRoute><Library /></ProtectedRoute>} />
 
-        <Route path="/test" element={<TestPage />} />
-      </Routes>
+          <Route path="/test" element={<ProtectedRoute><TestPage /></ProtectedRoute>} />
+        </Routes>
 
-      <Footer />
-    </BrowserRouter>
+        <Footer />
+      </BrowserRouter>
+    </AuthProvider>
   )
 }
 

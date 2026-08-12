@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect, useContext, useRef } from 'react'
 import { Button, Dropdown, Form, InputGroup, Modal } from 'react-bootstrap'
+import { AuthContext } from '../context/AuthContext'
 import FileCard from '../components/FileCard.jsx'
 import FolderCard from '../components/FolderCard.jsx'
 import LibraryBreadcrumb from '../components/LibraryBreadcrumb.jsx'
@@ -44,8 +45,69 @@ function countChildren(folderId, items) {
 }
 
 export default function Library() {
-  const [items, setItems] = useState(initialLibraryItems)
+  const { user } = useContext(AuthContext)
+  const [items, setItems] = useState(initialLibraryItems.filter(item => item.type === 'folder'))
   const [currentFolderId, setCurrentFolderId] = useState(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef(null)
+
+  const fetchDocuments = async () => {
+    if (!user?.student_id) return
+    try {
+      const response = await fetch(`http://localhost:8000/documents/${user.student_id}`)
+      if (response.ok) {
+        const data = await response.json()
+        const fetchedFiles = data.documents.map((doc) => ({
+          id: doc.document_id,
+          name: doc.filename,
+          type: 'file',
+          parentId: null,
+          uploadedAt: doc.created_at || new Date().toISOString(),
+          size: 'Unknown',
+        }))
+        setItems(prev => {
+          const folders = prev.filter(item => item.type === 'folder')
+          return [...folders, ...fetchedFiles]
+        })
+      }
+    } catch (error) {
+      console.error("Failed to fetch documents", error)
+    }
+  }
+
+  useEffect(() => {
+    fetchDocuments()
+  }, [user])
+
+  const handleUploadFile = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file || !user?.student_id) return
+    
+    setIsUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('student_id', user.student_id)
+      
+      const response = await fetch('http://localhost:8000/upload-pdf', {
+        method: 'POST',
+        body: formData,
+      })
+      
+      if (response.ok) {
+        await fetchDocuments()
+      } else {
+        console.error('Upload failed')
+      }
+    } catch (error) {
+      console.error('Upload error', error)
+    } finally {
+      setIsUploading(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
   const [searchQuery, setSearchQuery] = useState('')
   const [sortMode, setSortMode] = useState('recent')
   const [showNewFolderModal, setShowNewFolderModal] = useState(false)
@@ -326,10 +388,17 @@ export default function Library() {
             <i className="bi bi-folder-plus me-2" aria-hidden="true" />
             New Folder
           </Dropdown.Item>
-          <Dropdown.Item disabled>
+          <Dropdown.Item onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
             <i className="bi bi-upload me-2" aria-hidden="true" />
-            Upload File
+            {isUploading ? 'Uploading...' : 'Upload File'}
           </Dropdown.Item>
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            style={{ display: 'none' }} 
+            accept="application/pdf"
+            onChange={handleUploadFile}
+          />
         </Dropdown.Menu>
       </Dropdown>
 

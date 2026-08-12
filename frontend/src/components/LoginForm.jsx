@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { loginStudent } from "../services/api";
+import { AuthContext } from "../context/AuthContext";
 
 const LoginForm = () => {
+  const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const [user, setUser] = useState({
@@ -23,31 +24,13 @@ const LoginForm = () => {
     e.preventDefault();
     setLoading(true);
 
-    // 1. Authenticate with PostgreSQL database via Node API
-    const apiResult = await loginStudent(user.email, user.password);
+    const result = await login(user.email, user.password);
     setLoading(false);
 
-    if (apiResult.success) {
-      localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("user", JSON.stringify(apiResult.user || user));
-      alert(`Welcome back, ${apiResult.user?.full_name || 'Student'}! Login successful.`);
-      navigate("/");
-      return;
-    }
-
-    // 2. Fallback to localStorage check if offline
-    const savedUser = JSON.parse(localStorage.getItem("user"));
-    const savedStudents = JSON.parse(localStorage.getItem("students")) || [];
-
-    const localMatch = (savedUser && savedUser.email === user.email && savedUser.password === user.password) ||
-                       savedStudents.some((s) => s.email === user.email && s.password === user.password);
-
-    if (localMatch) {
-      localStorage.setItem("isLoggedIn", "true");
-      alert("Login successful!");
+    if (result.success) {
       navigate("/");
     } else {
-      alert("Login failed: " + (apiResult.error || "Invalid Email or Password!"));
+      alert("Login failed: " + (result.error || "Invalid Email or Password!"));
     }
   };
 

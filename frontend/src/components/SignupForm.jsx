@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import DatePicker from "react-datepicker";
-import { registerStudent } from "../services/api";
+import { AuthContext } from "../context/AuthContext";
 
 const SignupForm = () => {
-
+  const { signup } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const [student, setStudent] = useState({
@@ -88,28 +88,14 @@ const SignupForm = () => {
 
     setLoading(true);
 
-    // Save directly to PostgreSQL Database in Docker via Node Backend API
-    const apiResult = await registerStudent(studentData);
+    const result = await signup(studentData);
     setLoading(false);
 
-    if (!apiResult.success) {
-      alert("Database error: " + (apiResult.error || "Could not save to PostgreSQL database"));
-      return;
-    }
-
-    // Also store local copy for offline browser state
-    const existingStudents = JSON.parse(localStorage.getItem("students")) || [];
-    existingStudents.push(studentData);
-    localStorage.setItem("students", JSON.stringify(existingStudents));
-    localStorage.setItem("user", JSON.stringify(studentData));
-
-    if (age < 18) {
-      alert("Signup successful! Profile saved to PostgreSQL database (twin_db). A consent request has been sent to your guardian's email.");
+    if (result.success) {
+      navigate("/");
     } else {
-      alert("Signup Successful! Your Student Profile has been saved to the PostgreSQL database (twin_db).");
+      alert("Signup failed: " + (result.error || "Could not complete signup"));
     }
-
-    navigate("/login");
   };
 
   return (

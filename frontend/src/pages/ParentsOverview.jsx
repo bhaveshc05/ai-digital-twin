@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {
   BarChart,
   Bar,
@@ -9,25 +9,14 @@ import {
   Cell,
 } from "recharts";
 import { CheckCircle2, TrendingUp, AlertCircle, BookOpen } from "lucide-react";
+import { AuthContext } from "../context/AuthContext";
 
-// ---- Mock data (swap with real student data) ----
-const STUDENT = { name: "Aarav Mehta", grade: "Grade 6 · Section B", term: "Term 1, 2026" };
+// ---- Static / fallback data ----
+const HIGHLIGHT_NOTE =
+  "Aarav is showing steady improvement in Science and consistently strong scores in English this term. A little more daily practice in Social Studies would round things out nicely.";
 
-const OVERALL = {
-  testsDone: 12,
-  testsTaken: 12,
-  average: 82,
-  percentage: 84,
-  gradeLabel: "A-",
-};
-
-const SUBJECTS = [
-  { name: "Mathematics", score: 88, color: "#1b9748" },
-  { name: "Science", score: 79, color: "#b48b2a" },
-  { name: "English", score: 91, color: "#d6514f" },
-  { name: "Social Studies", score: 75, color: "#2876bf" },
-  { name: "Marathi", score: 85, color: "#a644c9" },
-];
+const AI_SUMMARY =
+  "Trending upward — up 23 points since Week 1. English is the strongest subject (91%); Social Studies is the one to focus revision on. At this pace, Aarav is on track to close the term above 85%.";
 
 const WEEKLY = [
   { week: "Week 1", student: 65, classAvg: 70 },
@@ -36,22 +25,97 @@ const WEEKLY = [
   { week: "Week 4", student: 88, classAvg: 75 },
 ];
 
-const TEST_SCORES = [
-  { test: "Unit Test 3", subject: "Mathematics", date: "14 Jul", score: "45/50", grade: "A", color: "#2e9d57" },
-  { test: "Unit Test 3", subject: "Science", date: "16 Jul", score: "38/50", grade: "B+", color: "#bc912d" },
-  { test: "Unit Test 3", subject: "English", date: "18 Jul", score: "46/50", grade: "A", color: "#bf4947" },
-  { test: "Unit Test 3", subject: "Social Studies", date: "20 Jul", score: "36/50", grade: "B", color: "#5697d3" },
-  { test: "Unit Test 3", subject: "Marathi", date: "22 Jul", score: "42/50", grade: "A-", color: "#b577cc" },
-];
+const COLORS = ["#1b9748", "#b48b2a", "#d6514f", "#2876bf", "#a644c9"];
 
-const HIGHLIGHT_NOTE =
-  "Aarav is showing steady improvement in Science and consistently strong scores in English this term. A little more daily practice in Social Studies would round things out nicely.";
-
-const AI_SUMMARY =
-  "Trending upward — up 23 points since Week 1. English is the strongest subject (91%); Social Studies is the one to focus revision on. At this pace, Aarav is on track to close the term above 85%.";
+function getSubjectColor(subject) {
+  let hash = 0;
+  for (let i = 0; i < subject.length; i++) {
+    hash = subject.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return COLORS[Math.abs(hash) % COLORS.length];
+}
 
 export default function ParentsOverview() {
+  const { user } = useContext(AuthContext);
   const [hoveredSubject, setHoveredSubject] = useState(null);
+
+  const [student, setStudent] = useState({ name: user?.full_name || "Student", grade: user?.grade || "Grade N/A", term: "Term 1, 2026" });
+  const [overall, setOverall] = useState({ testsDone: 0, testsTaken: 0, average: 0, percentage: 0, gradeLabel: "N/A" });
+  const [subjects, setSubjects] = useState([]);
+  const [testScores, setTestScores] = useState([]);
+
+  useEffect(() => {
+    if (!user || !user.student_id) return;
+
+    const fetchData = async () => {
+      try {
+        const [masteryRes, testsRes] = await Promise.all([
+          fetch(`http://localhost:8000/mastery/${user.student_id}`),
+          fetch(`http://localhost:8000/tests/${user.student_id}`)
+        ]);
+
+        let masteryData = { mastery: [] };
+        if (masteryRes.ok) masteryData = await masteryRes.json();
+
+        let testsData = { tests: [] };
+        if (testsRes.ok) testsData = await testsRes.json();
+
+        // Process mastery to subjects
+        const subjectMap = {};
+        masteryData.mastery.forEach(m => {
+          if (!subjectMap[m.subject]) subjectMap[m.subject] = { total: 0, count: 0 };
+          subjectMap[m.subject].total += m.score;
+          subjectMap[m.subject].count += 1;
+        });
+
+        const newSubjects = Object.keys(subjectMap).map(subj => ({
+          name: subj,
+          score: Math.round((subjectMap[subj].total / subjectMap[subj].count) * 100),
+          color: getSubjectColor(subj)
+        }));
+
+        setSubjects(newSubjects);
+
+        // Process tests
+        const newTestScores = testsData.tests.map(t => ({
+          test: t.title,
+          subject: t.subject,
+          date: "N/A", // Not provided by endpoint
+          score: "N/A", // Not provided by endpoint
+          grade: "N/A",
+          color: getSubjectColor(t.subject)
+        }));
+
+        setTestScores(newTestScores);
+
+        // Process overall
+        const numTests = newTestScores.length;
+        const avgScore = newSubjects.length > 0 
+          ? Math.round(newSubjects.reduce((sum, s) => sum + s.score, 0) / newSubjects.length) 
+          : 0;
+
+        let grade = "N/A";
+        if (avgScore >= 90) grade = "A";
+        else if (avgScore >= 80) grade = "B";
+        else if (avgScore >= 70) grade = "C";
+        else if (avgScore >= 60) grade = "D";
+        else if (avgScore > 0) grade = "F";
+
+        setOverall({
+          testsDone: numTests,
+          testsTaken: numTests,
+          average: avgScore,
+          percentage: avgScore,
+          gradeLabel: grade
+        });
+
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    };
+
+    fetchData();
+  }, [user]);
 
   return (
     <div className="po-root">
@@ -355,14 +419,14 @@ export default function ParentsOverview() {
       <div className="po-header">
         <div>
           <p className="po-eyebrow">Parents Overview</p>
-          <h1 className="po-title">{STUDENT.name}'s Progress</h1>
+          <h1 className="po-title">{student.name}'s Progress</h1>
           <div className="po-meta">
-            <strong>{STUDENT.grade}</strong> · {STUDENT.term}
+            <strong>{student.grade}</strong> · {student.term}
           </div>
         </div>
         <div className="stamp">
           <div className="stamp-inner">
-            <div className="stamp-grade">{OVERALL.gradeLabel}</div>
+            <div className="stamp-grade">{overall.gradeLabel}</div>
             <div className="stamp-label">Overall</div>
           </div>
         </div>
@@ -373,23 +437,23 @@ export default function ParentsOverview() {
         <div className="po-card card-overall">
           <h3><CheckCircle2 size={18} /> Overall tests</h3>
           <div className="donut-wrap">
-            <Donut subjects={SUBJECTS} />
+            <Donut subjects={subjects} percentage={overall.percentage} />
           </div>
           <div className="stat-row">
             <span className="stat-label">Tests done</span>
-            <span className="stat-value">{OVERALL.testsDone}</span>
+            <span className="stat-value">{overall.testsDone}</span>
           </div>
           <div className="stat-row">
             <span className="stat-label">Tests taken</span>
-            <span className="stat-value">{OVERALL.testsTaken}</span>
+            <span className="stat-value">{overall.testsTaken}</span>
           </div>
           <div className="stat-row">
             <span className="stat-label">Average marks</span>
-            <span className="stat-value">{OVERALL.average}</span>
+            <span className="stat-value">{overall.average}</span>
           </div>
           <div className="stat-row">
             <span className="stat-label">Percentage</span>
-            <span className="stat-value">{OVERALL.percentage}%</span>
+            <span className="stat-value">{overall.percentage}%</span>
           </div>
         </div>
 
@@ -436,7 +500,7 @@ export default function ParentsOverview() {
         {/* Subject performance */}
         <div className="po-card card-subjects">
           <h3>Subject performance</h3>
-          {SUBJECTS.map((s) => (
+          {subjects.map((s) => (
             <div
               key={s.name}
               className="subject-row"
@@ -477,7 +541,7 @@ export default function ParentsOverview() {
               </tr>
             </thead>
             <tbody>
-              {TEST_SCORES.map((t, i) => (
+              {testScores.map((t, i) => (
                 <tr key={i}>
                   <td>{t.test}</td>
                   <td>
@@ -503,7 +567,7 @@ export default function ParentsOverview() {
   );
 }
 
-function Donut({ subjects }) {
+function Donut({ subjects, percentage }) {
   const size = 150;
   const strokeWidth = 20;
   const radius = (size - strokeWidth) / 2;
@@ -545,7 +609,7 @@ function Donut({ subjects }) {
         fontSize="26"
         fill="#F1F5F9"
       >
-        84%
+        {percentage}%
       </text>
       <text
         x="50%"
