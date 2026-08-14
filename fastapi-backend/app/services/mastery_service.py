@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from database.models import StudentMastery
+from database.models import StudentMastery, MasterySnapshot
 
 def calculate_mastery_score(
     correct_answers: int,
@@ -70,6 +70,30 @@ def update_mastery_score(
     # Save changes
     db.commit()
     db.refresh(mastery)
+    create_mastery_snapshot(db, mastery)
 
     return mastery
 
+def create_mastery_snapshot(
+    db: Session,
+    mastery: StudentMastery
+):
+    """
+    Insert a snapshot row capturing the current state
+    of a mastery record. Called after every mastery update
+    to preserve history.
+    """
+
+    snapshot = MasterySnapshot(
+        student_id=mastery.student_id,
+        subject=mastery.subject,
+        topic=mastery.topic,
+        correct_answers=mastery.correct_answers,
+        total_questions=mastery.total_questions,
+        mastery_score=mastery.mastery_score
+    )
+
+    db.add(snapshot)
+    db.commit()
+
+    return snapshot
