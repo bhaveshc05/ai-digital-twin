@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 # Database
 from database.session import get_db
-from database.models import Student, KnowledgeChunk, Document, StudentMastery, Test
+from database.models import Student, KnowledgeChunk, Document, StudentMastery, Test, MasterySnapshot
 from app.services.llm_service import get_llm_service
 from app.services.embedding_service import get_embedding_service, EmbeddingService
 from worker.tasks import process_chunk_embedding
@@ -749,3 +749,45 @@ def generate_test(req: GenerateTestRequest, db: Session = Depends(get_db)):
         
     questions = llm.generate_test_questions(context, req.num_questions)
     return {"questions": questions}
+
+
+
+
+@router.get("/mastery-history/{student_id}")
+def get_mastery_history(
+    student_id: str,
+    subject: str = None,
+    topic: str = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Fetch the history of mastery score updates for a student.
+    Optionally filter by subject and/or topic.
+    """
+
+    query = db.query(MasterySnapshot).filter(
+        MasterySnapshot.student_id == student_id
+    )
+
+    if subject:
+        query = query.filter(MasterySnapshot.subject == subject)
+
+    if topic:
+        query = query.filter(MasterySnapshot.topic == topic)
+
+    history = query.order_by(MasterySnapshot.snapshot_at.asc()).all()
+
+    return {
+        "history": [
+            {
+                "snapshot_id": str(s.snapshot_id),
+                "subject": s.subject,
+                "topic": s.topic,
+                "correct_answers": s.correct_answers,
+                "total_questions": s.total_questions,
+                "mastery_score": s.mastery_score,
+                "snapshot_at": s.snapshot_at,
+            }
+            for s in history
+        ]
+    }

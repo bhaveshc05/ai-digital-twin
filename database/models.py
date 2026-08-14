@@ -10,6 +10,7 @@ from sqlalchemy import (
     Date,
     Integer,
     Float,
+    Index,
     func
 )
 
@@ -144,6 +145,15 @@ class KnowledgeChunk(Base):
         server_default=func.now()
     )
 
+    document_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "documents.document_id",
+            ondelete="CASCADE"
+        ),
+        nullable=True
+    )
+
     student = relationship(
         "Student",
         back_populates="chunks"
@@ -221,6 +231,70 @@ class StudentMastery(Base):
         "Student",
         back_populates="mastery_records"
     )
+
+
+# ============================================================
+# Mastery Snapshot Model
+# ============================================================
+
+class MasterySnapshot(Base):
+    __tablename__ = "mastery_snapshots"
+
+    snapshot_id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
+    )
+
+    student_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "students.student_id",
+            ondelete="CASCADE"
+        ),
+        nullable=False
+    )
+
+    subject = Column(
+        String(100),
+        nullable=False
+    )
+
+    topic = Column(
+        String(255),
+        nullable=False
+    )
+
+    correct_answers = Column(
+        Integer,
+        nullable=False
+    )
+
+    total_questions = Column(
+        Integer,
+        nullable=False
+    )
+
+    mastery_score = Column(
+        Float,
+        nullable=False
+    )
+
+    snapshot_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
+
+    student = relationship("Student")
+
+    __table_args__ = (
+        Index(
+            "ix_mastery_snapshots_lookup",
+            "student_id", "subject", "topic", "snapshot_at"
+        ),
+    )
+
 
 
 # ============================================================
