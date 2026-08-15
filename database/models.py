@@ -21,10 +21,6 @@ from pgvector.sqlalchemy import Vector
 from database.session import Base
 
 
-# ============================================================
-# Student Model
-# ============================================================
-
 class Student(Base):
     __tablename__ = "students"
 
@@ -75,39 +71,30 @@ class Student(Base):
         server_default=func.now()
     )
 
-    # Student's uploaded knowledge chunks
     chunks = relationship(
         "KnowledgeChunk",
         back_populates="student",
         cascade="all, delete-orphan"
     )
 
-    # Student's documents
     documents = relationship(
         "Document",
         back_populates="student",
         cascade="all, delete-orphan"
     )
 
-
-    # Student's mastery records
     mastery_records = relationship(
         "StudentMastery",
         back_populates="student",
         cascade="all, delete-orphan"
     )
 
-    # Student's tests
     tests = relationship(
         "Test",
         back_populates="student",
         cascade="all, delete-orphan"
     )
 
-
-# ============================================================
-# Knowledge Chunk Model
-# ============================================================
 
 class KnowledgeChunk(Base):
     __tablename__ = "knowledge_chunks"
@@ -164,11 +151,6 @@ class KnowledgeChunk(Base):
         back_populates="chunks"
     )
 
-
-
-# ============================================================
-# Student Mastery Model
-# ============================================================
 
 class StudentMastery(Base):
     __tablename__ = "student_mastery"
@@ -233,10 +215,6 @@ class StudentMastery(Base):
     )
 
 
-# ============================================================
-# Mastery Snapshot Model
-# ============================================================
-
 class MasterySnapshot(Base):
     __tablename__ = "mastery_snapshots"
 
@@ -291,15 +269,13 @@ class MasterySnapshot(Base):
     __table_args__ = (
         Index(
             "ix_mastery_snapshots_lookup",
-            "student_id", "subject", "topic", "snapshot_at"
+            "student_id",
+            "subject",
+            "topic",
+            "snapshot_at"
         ),
     )
 
-
-
-# ============================================================
-# Test Model
-# ============================================================
 
 class Test(Base):
     __tablename__ = "tests"
@@ -346,10 +322,6 @@ class Test(Base):
     )
 
 
-# ============================================================
-# Test Question Model
-# ============================================================
-
 class TestQuestion(Base):
     __tablename__ = "test_questions"
 
@@ -394,10 +366,6 @@ class TestQuestion(Base):
     )
 
 
-# ============================================================
-# Document Model
-# ============================================================
-
 class Document(Base):
     __tablename__ = "documents"
 
@@ -409,16 +377,30 @@ class Document(Base):
 
     student_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("students.student_id", ondelete="CASCADE"),
+        ForeignKey(
+            "students.student_id",
+            ondelete="CASCADE"
+        ),
         nullable=False
     )
 
-    filename = Column(String(255), nullable=False)
+    filename = Column(
+        String(255),
+        nullable=False
+    )
 
     created_at = Column(
         DateTime(timezone=True),
         server_default=func.now()
     )
 
-    student = relationship("Student", back_populates="documents")
-    chunks = relationship("KnowledgeChunk", back_populates="document", cascade="all, delete-orphan")
+    student = relationship(
+        "Student",
+        back_populates="documents"
+    )
+
+    chunks = relationship(
+        "KnowledgeChunk",
+        back_populates="document",
+        cascade="all, delete-orphan"
+    )
