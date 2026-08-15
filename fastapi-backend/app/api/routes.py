@@ -153,10 +153,12 @@ class LoginRequest(BaseModel):
     password: str
 
 
+
 class ChunkCreate(BaseModel):
     student_id: str
     text_content: str
     topic_tags: Optional[List[str]] = None
+
 
 
 class GenerateEmbeddingRequest(BaseModel):

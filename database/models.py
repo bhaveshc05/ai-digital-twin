@@ -95,6 +95,44 @@ class Student(Base):
         cascade="all, delete-orphan"
     )
 
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+
+    # Student's uploaded knowledge chunks
+    chunks = relationship(
+        "KnowledgeChunk",
+        back_populates="student",
+        cascade="all, delete-orphan"
+    )
+
+    # Student's documents
+    documents = relationship(
+        "Document",
+        back_populates="student",
+        cascade="all, delete-orphan"
+    )
+
+
+    # Student's mastery records
+    mastery_records = relationship(
+        "StudentMastery",
+        back_populates="student",
+        cascade="all, delete-orphan"
+    )
+
+    # Student's tests
+    tests = relationship(
+        "Test",
+        back_populates="student",
+        cascade="all, delete-orphan"
+    )
+
+
+# ============================================================
+# Knowledge Chunk Model
+# ============================================================
 
 class KnowledgeChunk(Base):
     __tablename__ = "knowledge_chunks"
