@@ -8,7 +8,7 @@ const SignupForm = () => {
   const navigate = useNavigate();
 
   const [student, setStudent] = useState({
-    name: "",
+    full_name: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -49,7 +49,7 @@ const SignupForm = () => {
     e.preventDefault();
 
     if (
-      !student.name ||
+      !student.full_name ||
       !student.email ||
       !student.password ||
       !student.confirmPassword ||
@@ -92,10 +92,20 @@ const SignupForm = () => {
     setLoading(false);
 
     if (result.success) {
-      navigate("/");
-    } else {
-      alert("Signup failed: " + (result.error || "Could not complete signup"));
-    }
+  navigate("/");
+} else {
+  console.log("Signup result:", result);
+  console.log("Signup error:", result.error);
+
+  const errorMessage =
+    result.error?.message ||
+    result.error?.detail ||
+    result.error?.error ||
+    (typeof result.error === "string" ? result.error : null) ||
+    "Could not complete signup";
+
+  alert("Signup failed: " + errorMessage);
+}
   };
 
   return (
@@ -126,8 +136,8 @@ const SignupForm = () => {
             <input
               type="text"
               className="form-control form-control-sm"
-              name="name"
-              value={student.name}
+              name="full_name"
+              value={student.full_name}
               onChange={handleChange}
               placeholder="Enter your full name"
             />

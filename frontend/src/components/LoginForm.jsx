@@ -10,27 +10,44 @@ const LoginForm = () => {
     email: "",
     password: "",
   });
+
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setUser({
-      ...user,
+
+    setUser((prev) => ({
+      ...prev,
       [name]: value,
-    });
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!user.email || !user.password) {
+      alert("Please enter email and password.");
+      return;
+    }
+
     setLoading(true);
 
-    const result = await login(user.email, user.password);
-    setLoading(false);
+    try {
+      const result = await login(user.email, user.password);
 
-    if (result.success) {
-      navigate("/");
-    } else {
-      alert("Login failed: " + (result.error || "Invalid Email or Password!"));
+      if (result?.success) {
+        navigate("/");
+      } else {
+        alert(
+          "Login failed: " +
+            (result?.error || "Invalid Email or Password!")
+        );
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      alert("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -41,7 +58,11 @@ const LoginForm = () => {
     >
       <div
         className="card shadow-lg p-4"
-        style={{ width: "100%", maxWidth: "400px", borderRadius: "15px" }}
+        style={{
+          width: "100%",
+          maxWidth: "400px",
+          borderRadius: "15px",
+        }}
       >
         <h3 className="text-center fw-bold mb-2">
           Welcome Back
@@ -52,7 +73,7 @@ const LoginForm = () => {
         </p>
 
         <form onSubmit={handleSubmit}>
-
+          {/* Email */}
           <div className="mb-3">
             <label className="form-label">
               Email
@@ -65,10 +86,12 @@ const LoginForm = () => {
               value={user.email}
               onChange={handleChange}
               placeholder="Enter your email"
+              autoComplete="email"
               required
             />
           </div>
 
+          {/* Password */}
           <div className="mb-3">
             <label className="form-label">
               Password
@@ -81,10 +104,12 @@ const LoginForm = () => {
               value={user.password}
               onChange={handleChange}
               placeholder="Enter your password"
+              autoComplete="current-password"
               required
             />
           </div>
 
+          {/* Login Button */}
           <button
             type="submit"
             className="btn btn-primary w-100 py-2"
@@ -93,8 +118,8 @@ const LoginForm = () => {
             {loading ? "Authenticating..." : "Login"}
           </button>
 
+          {/* Links */}
           <div className="text-center mt-3">
-
             <p className="mb-2">
               <Link
                 to="/forgotpassword"
@@ -113,9 +138,7 @@ const LoginForm = () => {
                 Sign Up
               </Link>
             </p>
-
           </div>
-
         </form>
       </div>
     </div>
