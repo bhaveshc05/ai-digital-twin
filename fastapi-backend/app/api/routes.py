@@ -1,10 +1,6 @@
-import uuid
 import os
-import sys
-import base64
-import hashlib
-import secrets
-
+import uuid
+import tempfile
 from pathlib import Path
 from typing import List, Optional
 
@@ -16,23 +12,13 @@ from fastapi import (
     UploadFile,
     Form,
 )
-
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-# ------------------------------------------------------------
-# Ensure project root can be imported
-# ------------------------------------------------------------
 
-sys.path.append(
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../..")
-    )
-)
-
-# ------------------------------------------------------------
-# Database
-# ------------------------------------------------------------
+# ============================================================
+# DATABASE
+# ============================================================
 
 from database.session import get_db
 
@@ -46,9 +32,10 @@ from database.models import (
     TestQuestion,
 )
 
-# ------------------------------------------------------------
-# Services
-# ------------------------------------------------------------
+
+# ============================================================
+# SERVICES
+# ============================================================
 
 from app.services.embedding_service import (
     get_embedding_service,
@@ -59,98 +46,45 @@ from app.services.mastery_service import (
     update_mastery_score,
 )
 
+from app.services.struggle_service import (
+    get_top_struggles,
+)
+
 from app.services.llm_service import (
     get_llm_service,
 )
 
-# ------------------------------------------------------------
-# Celery
-# ------------------------------------------------------------
+
+# ============================================================
+# CELERY
+# ============================================================
 
 from worker.celery_app import celery_app
 
 from worker.tasks import (
     process_chunk_embedding,
-    process_pdf_ingestion,
     process_pdf_task,
 )
 
-# ------------------------------------------------------------
-# Router
-# ------------------------------------------------------------
+
+# ============================================================
+# ROUTER
+# ============================================================
 
 router = APIRouter()
 
 
 # ============================================================
-# PASSWORD HELPERS
+# PYDANTIC SCHEMAS
 # ============================================================
 
-def hash_password(password: str) -> str:
-    """
-    Secure password hashing using PBKDF2.
-    """
-
-    salt = secrets.token_hex(16)
-
-    hashed = hashlib.pbkdf2_hmac(
-        "sha256",
-        password.encode("utf-8"),
-        salt.encode("utf-8"),
-        100000,
-    )
-
-    return f"{salt}${hashed.hex()}"
-
-
-def verify_password(
-    password: str,
-    stored_hash: str,
-) -> bool:
-    """
-    Verify password against stored hash.
-    """
-
-    try:
-        salt, saved_hash = stored_hash.split("$")
-
-        hashed = hashlib.pbkdf2_hmac(
-            "sha256",
-            password.encode("utf-8"),
-            salt.encode("utf-8"),
-            100000,
-        )
-
-        return secrets.compare_digest(
-            hashed.hex(),
-            saved_hash,
-        )
-
-    except Exception:
-        return False
-
-
-# ============================================================
-# REQUEST SCHEMAS
-# ============================================================
 
 class StudentCreate(BaseModel):
     email: str
     full_name: str
-    password: str
-
     board: Optional[str] = None
     grade: Optional[str] = None
-    date_of_birth: Optional[str] = None
-    exam_date: Optional[str] = None
     guardian_email: Optional[str] = None
-    age: Optional[int] = None
-    consent_status: Optional[str] = None
-
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
 
 
 
@@ -204,58 +138,36 @@ class GenerateTestRequest(BaseModel):
 
 
 # ============================================================
-# LOGIN
+# STUDENT ENDPOINTS
 # ============================================================
 
-@router.post("/login")
-def login(
-    payload: LoginRequest,
+
+@router.get("/students")
+def list_students(
     db: Session = Depends(get_db),
 ):
-    student = (
-        db.query(Student)
-        .filter(Student.email == payload.email)
-        .first()
-    )
-
-    if not student:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid email or password",
-        )
-
-    if not student.password_hash:
-        raise HTTPException(
-            status_code=401,
-            detail="Password not configured for this account",
-        )
-
-    if not verify_password(
-        payload.password,
-        student.password_hash,
-    ):
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid email or password",
-        )
+    students = db.query(Student).all()
 
     return {
-        "success": True,
-        "user": {
-            "student_id": str(student.student_id),
-            "email": student.email,
-            "full_name": student.full_name,
-            "board": student.board,
-            "grade": student.grade,
-            "guardian_email": student.guardian_email,
-        },
-        "message": "Login successful",
+        "students": [
+            {
+                "student_id": str(student.student_id),
+                "email": student.email,
+                "full_name": student.full_name,
+                "board": student.board,
+                "grade": student.grade,
+                "date_of_birth": (
+                    str(student.date_of_birth)
+                    if student.date_of_birth
+                    else None
+                ),
+                "guardian_email": student.guardian_email,
+                "created_at": student.created_at,
+            }
+            for student in students
+        ]
     }
 
-
-# ============================================================
-# CREATE STUDENT / SIGNUP
-# ============================================================
 
 @router.post("/students")
 def create_student(
@@ -271,13 +183,12 @@ def create_student(
     if existing_student:
         raise HTTPException(
             status_code=400,
-            detail="Email already registered",
+            detail="Student with this email already exists",
         )
 
     new_student = Student(
         email=student.email,
         full_name=student.full_name,
-        password_hash=hash_password(student.password),
         board=student.board,
         grade=student.grade,
         guardian_email=student.guardian_email,
@@ -288,54 +199,19 @@ def create_student(
     db.refresh(new_student)
 
     return {
-        "success": True,
         "student_id": str(new_student.student_id),
-        "user": {
-            "student_id": str(new_student.student_id),
-            "email": new_student.email,
-            "full_name": new_student.full_name,
-            "board": new_student.board,
-            "grade": new_student.grade,
-            "guardian_email": new_student.guardian_email,
-        },
-        "message": "Student created successfully",
-    }
-
-
-# ============================================================
-# LIST STUDENTS
-# ============================================================
-
-@router.get("/students")
-def list_students(
-    db: Session = Depends(get_db),
-):
-    students = db.query(Student).all()
-
-    return {
-        "students": [
-            {
-                "student_id": str(s.student_id),
-                "email": s.email,
-                "full_name": s.full_name,
-                "board": s.board,
-                "grade": s.grade,
-                "date_of_birth": (
-                    str(s.date_of_birth)
-                    if s.date_of_birth
-                    else None
-                ),
-                "guardian_email": s.guardian_email,
-                "created_at": s.created_at,
-            }
-            for s in students
-        ]
+        "email": new_student.email,
+        "full_name": new_student.full_name,
+        "board": new_student.board,
+        "grade": new_student.grade,
+        "guardian_email": new_student.guardian_email,
     }
 
 
 # ============================================================
 # MASTERY UPDATE
 # ============================================================
+
 
 @router.post("/mastery/update")
 def update_mastery(
@@ -344,7 +220,6 @@ def update_mastery(
 ):
     try:
         student_id = uuid.UUID(payload.student_id)
-
     except ValueError:
         raise HTTPException(
             status_code=400,
@@ -394,6 +269,7 @@ def update_mastery(
 # CREATE TEST
 # ============================================================
 
+
 @router.post("/tests")
 def create_test(
     payload: TestCreate,
@@ -401,7 +277,6 @@ def create_test(
 ):
     try:
         student_id = uuid.UUID(payload.student_id)
-
     except ValueError:
         raise HTTPException(
             status_code=400,
@@ -467,124 +342,9 @@ def create_test(
 
 
 # ============================================================
-# TEST SUBMISSION + AUTOMATIC MASTERY UPDATE
-# ============================================================
-
-@router.post("/tests/{test_id}/submit")
-def submit_test(
-    test_id: str,
-    payload: TestSubmission,
-    db: Session = Depends(get_db),
-):
-    try:
-        test_uuid = uuid.UUID(test_id)
-
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid test_id",
-        )
-
-    test = (
-        db.query(Test)
-        .filter(Test.test_id == test_uuid)
-        .first()
-    )
-
-    if not test:
-        raise HTTPException(
-            status_code=404,
-            detail="Test not found",
-        )
-
-    if not payload.answers:
-        raise HTTPException(
-            status_code=400,
-            detail="No answers submitted",
-        )
-
-    submitted_answers = {
-        answer.question_id: answer.answer.strip()
-        for answer in payload.answers
-    }
-
-    results = []
-    correct_count = 0
-
-    for question in test.questions:
-
-        question_id = str(question.question_id)
-
-        submitted_answer = submitted_answers.get(
-            question_id
-        )
-
-        is_correct = (
-            submitted_answer is not None
-            and submitted_answer.lower()
-            == question.correct_answer.strip().lower()
-        )
-
-        if is_correct:
-            correct_count += 1
-
-        mastery = update_mastery_score(
-            db=db,
-            student_id=test.student_id,
-            subject=test.subject,
-            topic=question.topic,
-            is_correct=is_correct,
-        )
-
-        results.append(
-            {
-                "question_id": question_id,
-                "topic": question.topic,
-                "question_text": question.question_text,
-                "submitted_answer": submitted_answer,
-                "correct_answer": question.correct_answer,
-                "is_correct": is_correct,
-                "mastery_score": mastery.mastery_score,
-                "mastery_percentage": round(
-                    mastery.mastery_score * 100,
-                    2,
-                ),
-            }
-        )
-
-    total_questions = len(test.questions)
-
-    score_percentage = (
-        correct_count / total_questions * 100
-        if total_questions
-        else 0
-    )
-
-    db.commit()
-
-    return {
-        "success": True,
-        "test_id": str(test.test_id),
-        "student_id": str(test.student_id),
-        "title": test.title,
-        "subject": test.subject,
-        "score": correct_count,
-        "total_questions": total_questions,
-        "score_percentage": round(
-            score_percentage,
-            2,
-        ),
-        "results": results,
-        "message": (
-            "Test submitted successfully "
-            "and mastery updated"
-        ),
-    }
-
-
-# ============================================================
 # GENERATE EMBEDDINGS
 # ============================================================
+
 
 @router.post("/embeddings/generate")
 def generate_embeddings(
@@ -599,7 +359,6 @@ def generate_embeddings(
     )
 
     if payload.text:
-
         embedding = service.generate_embedding(
             payload.text
         )
@@ -611,9 +370,10 @@ def generate_embeddings(
         }
 
     if payload.texts:
-
-        embeddings = service.generate_embeddings_batch(
-            payload.texts
+        embeddings = (
+            service.generate_embeddings_batch(
+                payload.texts
+            )
         )
 
         return {
@@ -637,8 +397,9 @@ def generate_embeddings(
 
 
 # ============================================================
-# CREATE KNOWLEDGE CHUNK
+# KNOWLEDGE CHUNKS
 # ============================================================
+
 
 @router.post("/chunks")
 def create_chunk(
@@ -647,7 +408,6 @@ def create_chunk(
 ):
     try:
         student_id = uuid.UUID(chunk.student_id)
-
     except ValueError:
         raise HTTPException(
             status_code=400,
@@ -698,10 +458,6 @@ def create_chunk(
     }
 
 
-# ============================================================
-# LIST KNOWLEDGE CHUNKS
-# ============================================================
-
 @router.get("/chunks")
 def list_chunks(
     db: Session = Depends(get_db),
@@ -711,19 +467,29 @@ def list_chunks(
     return {
         "chunks": [
             {
-                "chunk_id": str(c.chunk_id),
-                "student_id": str(c.student_id),
-                "text_content": c.text_content,
-                "topic_tags": c.topic_tags,
+                "chunk_id": str(chunk.chunk_id),
+                "student_id": str(chunk.student_id),
+                "text_content": chunk.text_content,
+                "topic_tags": chunk.topic_tags,
+                "document_id": (
+                    str(chunk.document_id)
+                    if getattr(
+                        chunk,
+                        "document_id",
+                        None,
+                    )
+                    else None
+                ),
             }
-            for c in chunks
+            for chunk in chunks
         ]
     }
 
 
 # ============================================================
-# CELERY EMBEDDING
+# CELERY CHUNK EMBEDDING TEST
 # ============================================================
+
 
 @router.post("/process-embedding")
 def trigger_embedding(
@@ -744,11 +510,30 @@ def trigger_embedding(
 # PDF UPLOAD
 # ============================================================
 
+
 @router.post("/upload-pdf")
 async def upload_pdf_file(
     file: UploadFile = File(...),
     student_id: Optional[str] = Form(None),
 ):
+    """
+    Upload a PDF and queue it for Celery processing.
+
+    Pipeline:
+
+    PDF
+      ↓
+    Celery
+      ↓
+    Text extraction / OCR
+      ↓
+    Chunking
+      ↓
+    Embeddings
+      ↓
+    PostgreSQL + pgvector
+    """
+
     if not file.filename:
         raise HTTPException(
             status_code=400,
@@ -761,6 +546,20 @@ async def upload_pdf_file(
             detail="Only PDF files are supported.",
         )
 
+    if not student_id:
+        raise HTTPException(
+            status_code=400,
+            detail="student_id is required.",
+        )
+
+    try:
+        student_uuid = uuid.UUID(student_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid student_id",
+        )
+
     file_bytes = await file.read()
 
     if not file_bytes:
@@ -769,80 +568,89 @@ async def upload_pdf_file(
             detail="Uploaded file is empty.",
         )
 
-    if not student_id:
-        raise HTTPException(
-            status_code=400,
-            detail="student_id is required.",
-        )
+    from database.session import SessionLocal
+
+    db = SessionLocal()
 
     try:
-        uuid.UUID(student_id)
-
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid student_id.",
+        student = (
+            db.query(Student)
+            .filter(
+                Student.student_id == student_uuid
+            )
+            .first()
         )
 
-    upload_dir = Path("uploads")
+        if not student:
+            raise HTTPException(
+                status_code=404,
+                detail="Student not found",
+            )
 
-    upload_dir.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    finally:
+        db.close()
 
-    file_id = uuid.uuid4()
+    temp_dir = tempfile.gettempdir()
 
     safe_filename = Path(
         file.filename
     ).name
 
-    file_path = (
-        upload_dir
-        / f"{file_id}_{safe_filename}"
+    temp_path = os.path.join(
+        temp_dir,
+        f"{uuid.uuid4()}_{safe_filename}",
     )
 
-    with open(file_path, "wb") as f:
-        f.write(file_bytes)
+    try:
+        with open(
+            temp_path,
+            "wb",
+        ) as temp_file:
+            temp_file.write(file_bytes)
 
-    task = process_pdf_task.delay(
-        str(file_path),
-        safe_filename,
-        student_id,
-    )
+        task = process_pdf_task.delay(
+            temp_path,
+            safe_filename,
+            str(student_uuid),
+        )
+
+    except Exception as error:
+
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Failed to queue PDF processing: {error}"
+            ),
+        )
 
     return {
-        "status": "success",
-        "filename": safe_filename,
-        "message": (
-            "PDF uploaded successfully. "
-            "Background processing started."
-        ),
-        "size": len(file_bytes),
+        "status": "queued",
         "task_id": task.id,
+        "filename": safe_filename,
+        "student_id": str(student_uuid),
+        "message": (
+            "PDF queued for background extraction, "
+            "chunking, and vector embedding."
+        ),
     }
 
 
 # ============================================================
-# TASK STATUS
+# CELERY TASK STATUS
 # ============================================================
+
 
 @router.get("/task-status/{task_id}")
 def get_task_status(
     task_id: str,
 ):
-    if task_id == "inline-complete":
-        return {
-            "task_id": task_id,
-            "status": "SUCCESS",
-            "result": {
-                "status": "success",
-            },
-        }
-
-    result = celery_app.AsyncResult(
-        task_id
-    )
+    result = celery_app.AsyncResult(task_id)
 
     return {
         "task_id": task_id,
@@ -856,18 +664,148 @@ def get_task_status(
 
 
 # ============================================================
+# TEST SUBMISSION
+# ============================================================
+
+
+@router.post("/tests/{test_id}/submit")
+def submit_test(
+    test_id: str,
+    payload: TestSubmission,
+    db: Session = Depends(get_db),
+):
+    try:
+        test_uuid = uuid.UUID(test_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid test_id",
+        )
+
+    test = (
+        db.query(Test)
+        .filter(Test.test_id == test_uuid)
+        .first()
+    )
+
+    if not test:
+        raise HTTPException(
+            status_code=404,
+            detail="Test not found",
+        )
+
+    if not payload.answers:
+        raise HTTPException(
+            status_code=400,
+            detail="No answers submitted",
+        )
+
+    submitted_answers = {
+        answer.question_id: answer.answer.strip()
+        for answer in payload.answers
+    }
+
+    results = []
+    correct_count = 0
+
+    for question in test.questions:
+
+        question_id = str(
+            question.question_id
+        )
+
+        submitted_answer = submitted_answers.get(
+            question_id
+        )
+
+        is_correct = (
+            submitted_answer is not None
+            and submitted_answer.lower()
+            == question.correct_answer.strip().lower()
+        )
+
+        if is_correct:
+            correct_count += 1
+
+        mastery = update_mastery_score(
+            db=db,
+            student_id=test.student_id,
+            subject=test.subject,
+            topic=question.topic,
+            is_correct=is_correct,
+        )
+
+        results.append(
+            {
+                "question_id": question_id,
+                "topic": question.topic,
+                "question_text": question.question_text,
+                "submitted_answer": submitted_answer,
+                "correct_answer": question.correct_answer,
+                "is_correct": is_correct,
+                "mastery_score": mastery.mastery_score,
+                "mastery_percentage": round(
+                    mastery.mastery_score * 100,
+                    2,
+                ),
+            }
+        )
+
+    total_questions = len(test.questions)
+
+    score_percentage = (
+        (correct_count / total_questions) * 100
+        if total_questions > 0
+        else 0
+    )
+
+    db.commit()
+
+    return {
+        "success": True,
+        "test_id": str(test.test_id),
+        "student_id": str(test.student_id),
+        "title": test.title,
+        "subject": test.subject,
+        "score": correct_count,
+        "total_questions": total_questions,
+        "score_percentage": round(
+            score_percentage,
+            2,
+        ),
+        "results": results,
+        "message": (
+            "Test submitted successfully "
+            "and mastery updated"
+        ),
+    }
+
+
+# ============================================================
 # DOCUMENTS
 # ============================================================
+
 
 @router.get("/documents/{student_id}")
 def get_documents(
     student_id: str,
     db: Session = Depends(get_db),
 ):
+    try:
+        student_uuid = uuid.UUID(student_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid student_id",
+        )
+
     docs = (
         db.query(Document)
         .filter(
-            Document.student_id == student_id
+            Document.student_id == student_uuid
+        )
+        .order_by(
+            Document.created_at.desc()
         )
         .all()
     )
@@ -875,28 +813,40 @@ def get_documents(
     return {
         "documents": [
             {
-                "document_id": str(d.document_id),
-                "filename": d.filename,
-                "created_at": d.created_at,
+                "document_id": str(
+                    document.document_id
+                ),
+                "filename": document.filename,
+                "created_at": document.created_at,
             }
-            for d in docs
+            for document in docs
         ]
     }
 
 
 # ============================================================
-# GET MASTERY
+# STUDENT MASTERY
 # ============================================================
+
 
 @router.get("/mastery/{student_id}")
 def get_mastery(
     student_id: str,
     db: Session = Depends(get_db),
 ):
+    try:
+        student_uuid = uuid.UUID(student_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid student_id",
+        )
+
     records = (
         db.query(StudentMastery)
         .filter(
-            StudentMastery.student_id == student_id
+            StudentMastery.student_id
+            == student_uuid
         )
         .all()
     )
@@ -904,6 +854,9 @@ def get_mastery(
     return {
         "mastery": [
             {
+                "mastery_id": str(
+                    record.mastery_id
+                ),
                 "subject": record.subject,
                 "topic": record.topic,
                 "score": record.mastery_score,
@@ -924,18 +877,102 @@ def get_mastery(
 
 
 # ============================================================
+# STUDENT STRUGGLES
+# ============================================================
+
+
+@router.get("/struggles/{student_id}")
+def get_student_struggles(
+    student_id: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Calculate and return the Top 5 topics where
+    the student is most likely to lose marks.
+
+    Formula:
+
+        Struggle Score =
+        (1 - Mastery)
+        × Syllabus Weight
+        × Time Decay
+    """
+
+    # --------------------------------------------------------
+    # Validate student UUID
+    # --------------------------------------------------------
+
+    try:
+        student_uuid = uuid.UUID(student_id)
+
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid student_id",
+        )
+
+    # --------------------------------------------------------
+    # Check student exists
+    # --------------------------------------------------------
+
+    student = (
+        db.query(Student)
+        .filter(
+            Student.student_id == student_uuid
+        )
+        .first()
+    )
+
+    if not student:
+        raise HTTPException(
+            status_code=404,
+            detail="Student not found",
+        )
+
+    # --------------------------------------------------------
+    # Calculate Top 5 struggles
+    # --------------------------------------------------------
+
+    struggles = get_top_struggles(
+        db=db,
+        student_id=student_uuid,
+        top_n=5,
+    )
+
+    # --------------------------------------------------------
+    # Return response
+    # --------------------------------------------------------
+
+    return {
+        "success": True,
+        "student_id": str(student_uuid),
+        "count": len(struggles),
+        "top_struggles": struggles,
+    }
+
+
+# ============================================================
 # STUDENT TESTS
 # ============================================================
+
 
 @router.get("/tests/{student_id}")
 def get_tests(
     student_id: str,
     db: Session = Depends(get_db),
 ):
+    try:
+        student_uuid = uuid.UUID(student_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid student_id",
+        )
+
     tests = (
         db.query(Test)
         .filter(
-            Test.student_id == student_id
+            Test.student_id == student_uuid
         )
         .all()
     )
@@ -956,22 +993,62 @@ def get_tests(
 # GENERATE TEST
 # ============================================================
 
+
 @router.post("/tests/generate")
 def generate_test(
     req: GenerateTestRequest,
     db: Session = Depends(get_db),
 ):
+    try:
+        student_uuid = uuid.UUID(req.student_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid student_id",
+        )
+
+    student = (
+        db.query(Student)
+        .filter(
+            Student.student_id == student_uuid
+        )
+        .first()
+    )
+
+    if not student:
+        raise HTTPException(
+            status_code=404,
+            detail="Student not found",
+        )
+
+    if req.num_questions < 1:
+        raise HTTPException(
+            status_code=400,
+            detail="num_questions must be at least 1",
+        )
+
     llm = get_llm_service()
 
     context = ""
 
     if req.document_id:
 
+        try:
+            document_uuid = uuid.UUID(
+                req.document_id
+            )
+
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid document_id",
+            )
+
         chunks = (
             db.query(KnowledgeChunk)
             .filter(
                 KnowledgeChunk.document_id
-                == req.document_id
+                == document_uuid
             )
             .all()
         )
@@ -987,7 +1064,7 @@ def generate_test(
             db.query(KnowledgeChunk)
             .filter(
                 KnowledgeChunk.student_id
-                == req.student_id
+                == student_uuid
             )
             .limit(10)
             .all()
@@ -996,6 +1073,32 @@ def generate_test(
         context = " ".join(
             chunk.text_content
             for chunk in chunks
+        )
+
+    else:
+
+        chunks = (
+            db.query(KnowledgeChunk)
+            .filter(
+                KnowledgeChunk.student_id
+                == student_uuid
+            )
+            .limit(10)
+            .all()
+        )
+
+        context = " ".join(
+            chunk.text_content
+            for chunk in chunks
+        )
+
+    if not context.strip():
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "No study material found "
+                "for test generation."
+            ),
         )
 
     questions = llm.generate_test_questions(
@@ -1012,6 +1115,7 @@ def generate_test(
 # MASTERY HISTORY
 # ============================================================
 
+
 @router.get("/mastery-history/{student_id}")
 def get_mastery_history(
     student_id: str,
@@ -1019,11 +1123,19 @@ def get_mastery_history(
     topic: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
+    try:
+        student_uuid = uuid.UUID(student_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid student_id",
+        )
+
     query = (
         db.query(MasterySnapshot)
         .filter(
             MasterySnapshot.student_id
-            == student_id
+            == student_uuid
         )
     )
 

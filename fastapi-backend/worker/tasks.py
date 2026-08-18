@@ -19,13 +19,13 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================================
-# OLD TEST / EMBEDDING TASK
+# CELERY TEST / EMBEDDING TASK
 # ============================================================
 
 @celery_app.task(name="process_chunk_embedding")
 def process_chunk_embedding(
     chunk_id: str,
-    text: str
+    text: str,
 ):
     """
     Test task for verifying Celery + Redis.
@@ -43,7 +43,7 @@ def process_chunk_embedding(
 
 
 # ============================================================
-# ACTUAL PDF PROCESSING TASK
+# PDF PROCESSING TASK
 # ============================================================
 
 @celery_app.task(name="process_pdf")
@@ -69,31 +69,48 @@ def process_pdf_task(
     db = SessionLocal()
 
     try:
-
         print("=" * 60)
         print("[Worker] PDF processing started")
         print(f"[Worker] File: {filename}")
         print(f"[Worker] Student ID: {student_id}")
 
         # --------------------------------------------------
-        # 1. Read PDF
+        # 1. Validate student ID
         # --------------------------------------------------
+
+        try:
+            student_uuid = uuid.UUID(student_id)
+        except (ValueError, AttributeError):
+            raise ValueError(
+                f"Invalid student_id: {student_id}"
+            )
+
+        # --------------------------------------------------
+        # 2. Read PDF
+        # --------------------------------------------------
+
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(
+                f"PDF file not found: {file_path}"
+            )
 
         with open(file_path, "rb") as f:
             pdf_bytes = f.read()
 
+        if not pdf_bytes:
+            raise ValueError(
+                "PDF file is empty."
+            )
+
         print("[Worker] PDF loaded successfully")
 
         # --------------------------------------------------
-        # 2. Extract text
+        # 3. Extract text
         # --------------------------------------------------
 
         text = extract_text_from_pdf(pdf_bytes)
 
-        if (
-            not text
-            or text.startswith("No extractable")
-        ):
+        if not text or text.startswith("No extractable"):
             raise ValueError(
                 "No text could be extracted from the PDF."
             )
@@ -104,10 +121,8 @@ def process_pdf_task(
         )
 
         # --------------------------------------------------
-        # 3. Create document record
+        # 4. Create document record
         # --------------------------------------------------
-
-        student_uuid = uuid.UUID(student_id)
 
         document = Document(
             student_id=student_uuid,
@@ -123,7 +138,7 @@ def process_pdf_task(
         )
 
         # --------------------------------------------------
-        # 4. Chunk text
+        # 5. Chunk extracted text
         # --------------------------------------------------
 
         chunks = chunk_text(text)
@@ -139,17 +154,26 @@ def process_pdf_task(
         )
 
         # --------------------------------------------------
-        # 5. Generate embeddings
+        # 6. Generate embeddings
         # --------------------------------------------------
 
-        embedding_service = (
-            get_embedding_service()
-        )
+        embedding_service = get_embedding_service()
 
         embeddings = (
             embedding_service
             .generate_embeddings_batch(chunks)
         )
+
+        if not embeddings:
+            raise ValueError(
+                "No embeddings were generated."
+            )
+
+        if len(embeddings) != len(chunks):
+            raise ValueError(
+                "Number of embeddings does not match "
+                "number of chunks."
+            )
 
         print(
             f"[Worker] Generated "
@@ -157,26 +181,25 @@ def process_pdf_task(
         )
 
         # --------------------------------------------------
-        # 6. Store chunks + embeddings
+        # 7. Store knowledge chunks
         # --------------------------------------------------
 
         for chunk, embedding in zip(
             chunks,
-            embeddings
+            embeddings,
         ):
-
             knowledge_chunk = KnowledgeChunk(
                 student_id=student_uuid,
+                document_id=document.document_id,
                 text_content=chunk,
                 topic_tags=[],
                 embedding=embedding,
-                document_id=document.document_id,
             )
 
             db.add(knowledge_chunk)
 
         # --------------------------------------------------
-        # 7. Commit
+        # 8. Commit database transaction
         # --------------------------------------------------
 
         db.commit()
@@ -192,15 +215,13 @@ def process_pdf_task(
         return {
             "status": "success",
             "filename": filename,
-            "document_id": str(
-                document.document_id
-            ),
+            "student_id": str(student_uuid),
+            "document_id": str(document.document_id),
             "chunks_created": len(chunks),
             "embeddings_created": len(embeddings),
         }
 
-    except Exception as e:
-
+    except Exception:
         db.rollback()
 
         logger.exception(
@@ -210,15 +231,13 @@ def process_pdf_task(
         raise
 
     finally:
-
         db.close()
 
         # --------------------------------------------------
-        # 8. Delete temporary PDF
+        # 9. Delete temporary PDF
         # --------------------------------------------------
 
         if os.path.exists(file_path):
-
             try:
                 os.remove(file_path)
 
@@ -227,7 +246,6 @@ def process_pdf_task(
                 )
 
             except Exception as cleanup_error:
-
                 logger.warning(
                     "Could not delete temporary PDF: %s",
                     cleanup_error,
