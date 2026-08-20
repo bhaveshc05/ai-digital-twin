@@ -1,70 +1,188 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, {
+  createContext,
+  useState,
+  useEffect
+} from "react";
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
 
+  // =========================
+  // RESTORE LOGGED-IN USER
+  // =========================
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
+    const savedUser = localStorage.getItem("user");
+
     if (savedUser) {
       try {
         setUser(JSON.parse(savedUser));
-      } catch (e) {
-        console.error("Failed to parse user from localStorage", e);
+      } catch (error) {
+        console.error(
+          "Failed to parse user from localStorage",
+          error
+        );
+
+        localStorage.removeItem("user");
       }
     }
   }, []);
 
+  // =========================
+  // LOGIN
+  // =========================
   const login = async (email, password) => {
     try {
-      const res = await fetch('http://localhost:5000/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
+      const res = await fetch(
+        "http://localhost:5000/api/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            email,
+            password
+          })
+        }
+      );
+
       const data = await res.json();
+
+      if (!res.ok) {
+        return {
+          success: false,
+          error:
+            data.detail ||
+            data.error ||
+            "Login failed"
+        };
+      }
+
       if (data.success) {
         setUser(data.user);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        return { success: true };
-      } else {
-        return { success: false, error: data.error || 'Login failed' };
+
+        localStorage.setItem(
+          "user",
+          JSON.stringify(data.user)
+        );
+
+        return {
+          success: true,
+          user: data.user
+        };
       }
+
+      return {
+        success: false,
+        error:
+          data.detail ||
+          data.error ||
+          "Login failed"
+      };
+
     } catch (error) {
       console.error("Login error:", error);
-      return { success: false, error: 'Network error' };
+
+      return {
+        success: false,
+        error: "Unable to connect to server"
+      };
     }
   };
 
+  // =========================
+  // SIGNUP
+  // =========================
   const signup = async (studentData) => {
     try {
-      const res = await fetch('http://localhost:5000/api/students', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(studentData)
-      });
+      const res = await fetch(
+        "http://localhost:8000/api/v1/students",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(studentData)
+        }
+      );
+
       const data = await res.json();
-      if (data.success) {
-        setUser(data.user);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        return { success: true };
-      } else {
-        return { success: false, error: data.error || 'Signup failed' };
+
+      console.log(
+        "SIGNUP RESPONSE:",
+        JSON.stringify(data, null, 2)
+      );
+
+      console.log(
+        "DATA SENT:",
+        JSON.stringify(studentData, null, 2)
+      );
+
+      if (!res.ok) {
+        return {
+          success: false,
+          error:
+            data.detail ||
+            data.error ||
+            "Signup failed"
+        };
       }
+
+      // FastAPI returns student data directly
+      if (data.student_id) {
+        setUser(data);
+
+        localStorage.setItem(
+          "user",
+          JSON.stringify(data)
+        );
+
+        return {
+          success: true,
+          user: data
+        };
+      }
+
+      return {
+        success: false,
+        error:
+          data.detail ||
+          data.error ||
+          "Signup failed"
+      };
+
     } catch (error) {
       console.error("Signup error:", error);
-      return { success: false, error: 'Network error' };
+
+      return {
+        success: false,
+        error: "Unable to connect to server"
+      };
     }
   };
 
+  // =========================
+  // LOGOUT
+  // =========================
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('user');
+    localStorage.removeItem("user");
   };
 
+  // =========================
+  // CONTEXT
+  // =========================
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        login,
+        signup,
+        logout
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

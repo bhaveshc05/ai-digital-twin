@@ -72,4 +72,4 @@ export default function TopStruggles({ studentId, refreshInterval = 30000 }) {
             </Card.Body>
         </Card>
     );
-}
+}/.
