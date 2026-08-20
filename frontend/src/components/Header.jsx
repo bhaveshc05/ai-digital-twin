@@ -39,20 +39,14 @@ const Header = () => {
             </li>
 
             <li>
+              <Link to="/dashboard" className="nav-link nav-item-custom">
+                Top Struggle
+              </Link>
+            </li>
+
+            <li>
               <Link to="/parents-dashboard" className="nav-link nav-item-custom">
                 Parents Dashboard
-              </Link>
-            </li>
-
-            <li>
-              <Link to="/Library" className="nav-link nav-item-custom">
-                Library
-              </Link>
-            </li>
-
-            <li>
-              <Link to="/TestPage" className="nav-link nav-item-custom">
-                Tests
               </Link>
             </li>
           </ul>

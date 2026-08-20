@@ -8,6 +8,7 @@ import Signup from './pages/Signup'
 import ParentsOverview from './pages/ParentsOverview'
 import Library from './pages/Library'
 import TestPage from './pages/TestPage'
+import Dashboard from './pages/Dashboard'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 
@@ -55,6 +56,8 @@ function App() {
           <Route path="/" element={<Home />} />
 
           <Route path="/Login" element={<Login />} />
+
+          <Route path="/dashboard" element={<Dashboard />} />
 
           {/* Parents Dashboard */}
           <Route
