@@ -10,6 +10,7 @@ from sqlalchemy import (
     Date,
     Integer,
     Float,
+    Index,
     func
 )
 
@@ -19,10 +20,6 @@ from pgvector.sqlalchemy import Vector
 
 from database.session import Base
 
-
-# ============================================================
-# Student Model
-# ============================================================
 
 class Student(Base):
     __tablename__ = "students"
@@ -67,6 +64,35 @@ class Student(Base):
     guardian_email = Column(
         String(255),
         nullable=True
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+
+    chunks = relationship(
+        "KnowledgeChunk",
+        back_populates="student",
+        cascade="all, delete-orphan"
+    )
+
+    documents = relationship(
+        "Document",
+        back_populates="student",
+        cascade="all, delete-orphan"
+    )
+
+    mastery_records = relationship(
+        "StudentMastery",
+        back_populates="student",
+        cascade="all, delete-orphan"
+    )
+
+    tests = relationship(
+        "Test",
+        back_populates="student",
+        cascade="all, delete-orphan"
     )
 
     created_at = Column(
@@ -144,6 +170,15 @@ class KnowledgeChunk(Base):
         server_default=func.now()
     )
 
+    document_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "documents.document_id",
+            ondelete="CASCADE"
+        ),
+        nullable=True
+    )
+
     student = relationship(
         "Student",
         back_populates="chunks"
@@ -154,11 +189,6 @@ class KnowledgeChunk(Base):
         back_populates="chunks"
     )
 
-
-
-# ============================================================
-# Student Mastery Model
-# ============================================================
 
 class StudentMastery(Base):
     __tablename__ = "student_mastery"
@@ -223,9 +253,67 @@ class StudentMastery(Base):
     )
 
 
-# ============================================================
-# Test Model
-# ============================================================
+class MasterySnapshot(Base):
+    __tablename__ = "mastery_snapshots"
+
+    snapshot_id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
+    )
+
+    student_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "students.student_id",
+            ondelete="CASCADE"
+        ),
+        nullable=False
+    )
+
+    subject = Column(
+        String(100),
+        nullable=False
+    )
+
+    topic = Column(
+        String(255),
+        nullable=False
+    )
+
+    correct_answers = Column(
+        Integer,
+        nullable=False
+    )
+
+    total_questions = Column(
+        Integer,
+        nullable=False
+    )
+
+    mastery_score = Column(
+        Float,
+        nullable=False
+    )
+
+    snapshot_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
+
+    student = relationship("Student")
+
+    __table_args__ = (
+        Index(
+            "ix_mastery_snapshots_lookup",
+            "student_id",
+            "subject",
+            "topic",
+            "snapshot_at"
+        ),
+    )
+
 
 class Test(Base):
     __tablename__ = "tests"
@@ -272,10 +360,6 @@ class Test(Base):
     )
 
 
-# ============================================================
-# Test Question Model
-# ============================================================
-
 class TestQuestion(Base):
     __tablename__ = "test_questions"
 
@@ -320,10 +404,6 @@ class TestQuestion(Base):
     )
 
 
-# ============================================================
-# Document Model
-# ============================================================
-
 class Document(Base):
     __tablename__ = "documents"
 
@@ -335,16 +415,30 @@ class Document(Base):
 
     student_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("students.student_id", ondelete="CASCADE"),
+        ForeignKey(
+            "students.student_id",
+            ondelete="CASCADE"
+        ),
         nullable=False
     )
 
-    filename = Column(String(255), nullable=False)
+    filename = Column(
+        String(255),
+        nullable=False
+    )
 
     created_at = Column(
         DateTime(timezone=True),
         server_default=func.now()
     )
 
-    student = relationship("Student", back_populates="documents")
-    chunks = relationship("KnowledgeChunk", back_populates="document", cascade="all, delete-orphan")
+    student = relationship(
+        "Student",
+        back_populates="documents"
+    )
+
+    chunks = relationship(
+        "KnowledgeChunk",
+        back_populates="document",
+        cascade="all, delete-orphan"
+    )

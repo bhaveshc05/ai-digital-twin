@@ -1,7 +1,10 @@
 import heroImage from "../assets/hero.png";
-import { GoPlus } from "react-icons/go";
+import { BsArrowRight } from "react-icons/bs";
+import { useNavigate } from "react-router-dom";
 
 const Hero = () => {
+  const navigate = useNavigate();
+
   return (
     <section
       className="text-white d-flex align-items-center"
@@ -31,13 +34,14 @@ const Hero = () => {
             </p>
 
             <div className="d-flex gap-3 mb-5">
-              <button className="btn btn-info btn-lg px-4">
-                <GoPlus size={22} />
+              <button
+                className="btn btn-info btn-lg px-4"
+                onClick={() => navigate("/upload-pdf")}
+              >
                 Upload documents
+                <BsArrowRight size={22} />
               </button>
             </div>
-
-            
 
             <div className="row text-center text-lg-start">
               <div className="col-4">
@@ -55,6 +59,7 @@ const Hero = () => {
                 <p>Success Rate</p>
               </div>
             </div>
+
           </div>
         </div>
       </div>
