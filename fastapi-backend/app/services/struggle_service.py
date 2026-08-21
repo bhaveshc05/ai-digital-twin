@@ -131,6 +131,10 @@ def get_top_struggles(
     and return Top N weak topics.
     """
 
+    from database.models import SyllabusWeight
+    weight_records = db.query(SyllabusWeight).all()
+    syllabus_weights_db = {w.topic: w.weight for w in weight_records}
+
     records = (
         db.query(StudentMastery)
         .filter(
@@ -159,9 +163,10 @@ def get_top_struggles(
         # Syllabus Weight
         # ----------------------------------------------------
 
-        syllabus_weight = SYLLABUS_WEIGHTS.get(
+        # Prioritize database weights, fallback to hardcoded if not present, then default to 1.0
+        syllabus_weight = syllabus_weights_db.get(
             record.topic,
-            1.0,
+            SYLLABUS_WEIGHTS.get(record.topic, 1.0)
         )
 
         # ----------------------------------------------------
