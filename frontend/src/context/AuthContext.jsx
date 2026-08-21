@@ -9,7 +9,13 @@ export const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
 
+<<<<<<< HEAD
+  // =========================
+  // RESTORE LOGGED-IN USER
+  // =========================
+=======
   // Restore logged-in user after page refresh
+>>>>>>> 004e860e558146f4ab1ccacf9eb40a15724c73f5
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
 
@@ -33,7 +39,11 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const res = await fetch(
+<<<<<<< HEAD
+        "http://localhost:5000/api/login",
+=======
         "http://localhost:8000/api/v1/login",
+>>>>>>> 004e860e558146f4ab1ccacf9eb40a15724c73f5
         {
           method: "POST",
           headers: {
@@ -108,6 +118,17 @@ export const AuthProvider = ({ children }) => {
 
       const data = await res.json();
 
+<<<<<<< HEAD
+      console.log(
+        "SIGNUP RESPONSE:",
+        JSON.stringify(data, null, 2)
+      );
+
+      console.log(
+        "DATA SENT:",
+        JSON.stringify(studentData, null, 2)
+      );
+=======
 console.log(
   "SIGNUP RESPONSE:",
   JSON.stringify(data, null, 2)
@@ -117,6 +138,7 @@ console.log(
   "DATA SENT:",
   JSON.stringify(studentData, null, 2)
 );
+>>>>>>> 004e860e558146f4ab1ccacf9eb40a15724c73f5
 
       if (!res.ok) {
         return {
@@ -126,6 +148,25 @@ console.log(
             data.error ||
             "Signup failed"
         };
+<<<<<<< HEAD
+      }
+
+      // FastAPI returns student data directly
+      if (data.student_id) {
+        setUser(data);
+
+        localStorage.setItem(
+          "user",
+          JSON.stringify(data)
+        );
+
+        return {
+          success: true,
+          user: data
+        };
+      }
+
+=======
       }
 
       if (data.success) {
@@ -142,6 +183,7 @@ console.log(
         };
       }
 
+>>>>>>> 004e860e558146f4ab1ccacf9eb40a15724c73f5
       return {
         success: false,
         error:
@@ -168,6 +210,9 @@ console.log(
     localStorage.removeItem("user");
   };
 
+  // =========================
+  // CONTEXT
+  // =========================
   return (
     <AuthContext.Provider
       value={{

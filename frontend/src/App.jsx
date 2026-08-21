@@ -1,3 +1,18 @@
+<<<<<<< HEAD
+import { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
+import Header from './components/Header'
+import Footer from './components/Footer'
+import Home from './pages/Home'
+import Login from './pages/Login'
+import Signup from './pages/Signup'
+import ParentsOverview from './pages/ParentsOverview'
+import Library from './pages/Library'
+import TestPage from './pages/TestPage'
+import Dashboard from './pages/Dashboard'
+import { AuthProvider } from './context/AuthContext'
+import ProtectedRoute from './components/ProtectedRoute'
+=======
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 
 import Header from "./components/Header";
@@ -14,6 +29,7 @@ import StudentProfile from "./pages/StudentProfile";
 
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+>>>>>>> 004e860e558146f4ab1ccacf9eb40a15724c73f5
 
 
 function InfoPage({ title, description }) {
@@ -58,7 +74,15 @@ function App() {
 
         <Routes>
 
+<<<<<<< HEAD
+          <Route path="/Login" element={<Login />} />
+
+          <Route path="/dashboard" element={<Dashboard />} />
+
+          {/* Parents Dashboard */}
+=======
           {/* Public Home */}
+>>>>>>> 004e860e558146f4ab1ccacf9eb40a15724c73f5
           <Route
             path="/"
             element={<Home />}

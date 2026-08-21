@@ -55,16 +55,27 @@ const Header = () => {
             </li>
 
             <li>
+<<<<<<< HEAD
+              <Link to="/dashboard" className="nav-link nav-item-custom">
+                Top Struggle
+=======
               <Link
                 to="/student-profile"
                 className="nav-link nav-item-custom"
               >
                 <i className="bi bi-person-circle me-1"></i>
                 Student Profile
+>>>>>>> 004e860e558146f4ab1ccacf9eb40a15724c73f5
               </Link>
             </li>
 
             <li>
+<<<<<<< HEAD
+              <Link to="/parents-dashboard" className="nav-link nav-item-custom">
+                Parents Dashboard
+              </Link>
+            </li>
+=======
               <Link
                 to="/parents-dashboard"
                 className="nav-link nav-item-custom"
@@ -73,6 +84,7 @@ const Header = () => {
               </Link>
             </li>
 
+>>>>>>> 004e860e558146f4ab1ccacf9eb40a15724c73f5
           </ul>
 
           {/* Search */}
