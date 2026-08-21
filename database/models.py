@@ -508,3 +508,44 @@ class Document(Base):
         back_populates="document",
         cascade="all, delete-orphan"
     )
+
+# ============================================================
+# Student Mastery History Model
+# ============================================================
+
+class StudentMasteryHistory(Base):
+    __tablename__ = "student_mastery_history"
+
+    history_id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
+    )
+
+    student_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("students.student_id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    mastery_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("student_mastery.mastery_id", ondelete="CASCADE"),
+        nullable=True
+    )
+
+    subject = Column(String(100), nullable=False)
+    topic = Column(String(255), nullable=False)
+    mastery_score = Column(Float, nullable=False)
+    
+    # What caused this update? (e.g. test_id or just 'manual')
+    source_type = Column(String(50), nullable=True, default="test")
+    source_id = Column(String(255), nullable=True)
+
+    timestamp = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+
+    student = relationship("Student")
+    mastery_record = relationship("StudentMastery")
