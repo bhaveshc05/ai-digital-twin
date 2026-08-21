@@ -1,5 +1,11 @@
+import os
+import redis
 from sqlalchemy.orm import Session
 from database.models import StudentMastery, MasterySnapshot
+
+# Optional: set up redis client lazily
+redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+redis_client = redis.Redis.from_url(redis_url)
 
 # BKT Default Parameters
 BKT_P_L0 = 0.30  # Initial probability of knowledge
@@ -81,6 +87,11 @@ def update_mastery_score(
     create_mastery_snapshot(db, mastery)
 
 
+    # Invalidate top-struggles cache in Node.js / Redis
+    try:
+        redis_client.delete(f"struggles:{student_id}")
+    except Exception as e:
+        print(f"Warning: failed to invalidate cache for student {student_id}: {e}")
 
     return mastery
 

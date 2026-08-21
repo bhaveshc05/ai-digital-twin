@@ -75,3 +75,51 @@ exports.loginStudent = async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 };
+
+const redisClient = require('../redisClient');
+
+// GET /api/students/:student_id/top-struggles
+exports.getTopStruggles = async (req, res) => {
+  const { student_id } = req.params;
+  const cacheKey = `struggles:${student_id}`;
+
+  try {
+    // 1. Check Redis Cache
+    const cachedData = await redisClient.get(cacheKey);
+    if (cachedData) {
+      console.log(`[Cache Hit] Top struggles for ${student_id}`);
+      return res.json(JSON.parse(cachedData));
+    }
+
+    // 2. Cache Miss: Fetch from FastAPI
+    console.log(`[Cache Miss] Fetching struggles for ${student_id} from FastAPI...`);
+    const fastApiUrl = `http://localhost:8000/api/v1/struggles/${student_id}`;
+    
+    const response = await fetch(fastApiUrl);
+    if (!response.ok) {
+      throw new Error(`FastAPI returned ${response.status}`);
+    }
+    
+    const data = await response.json();
+
+    // The react component expects an array of objects with { name: string, score: number } or similar
+    // Let's check what TopStruggles.jsx expects: topic.topic_id || topic.name and topic.score.
+    // FastAPI returns: { count: int, top_struggles: [ { topic, struggle_score, ... } ] }
+    // So we map it to { name, score, topic_id }
+    
+    const mappedData = data.top_struggles.map(s => ({
+      name: s.topic,
+      score: Math.round(s.struggle_score * 100)
+    }));
+
+    // 3. Save to Cache
+    await redisClient.set(cacheKey, JSON.stringify(mappedData), {
+      EX: 3600 // cache for 1 hour by default
+    });
+
+    res.json(mappedData);
+  } catch (err) {
+    console.error('Error fetching top struggles:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
