@@ -46,6 +46,9 @@ from app.services.mastery_service import (
     update_mastery_score,
 )
 
+from app.services.struggle_data_service import (
+    get_struggle_input_data,
+)
 from app.services.struggle_service import (
     get_top_struggles,
 )
@@ -1183,5 +1186,32 @@ def get_mastery_history(
                 ),
             }
             for snapshot in history
+        ]
+    }
+
+
+# ============================================================
+# STRUGGLE DATA (feeds Struggle Topic Predictor)
+# ============================================================
+
+@router.get("/struggle-data/{student_id}")
+def get_struggle_data(
+    student_id: str,
+    db: Session = Depends(get_db),
+):
+    data = get_struggle_input_data(db, student_id)
+
+    return {
+        "student_id": student_id,
+        "topics": [
+            {
+                "subject": row["subject"],
+                "topic": row["topic"],
+                "mastery_score": row["mastery_score"],
+                "syllabus_weight": row["syllabus_weight"],
+                "last_updated_at": row["last_updated_at"],
+                "days_since_practice": row["days_since_practice"],
+            }
+            for row in data
         ]
     }

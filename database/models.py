@@ -315,6 +315,72 @@ class MasterySnapshot(Base):
     )
 
 
+class SyllabusWeight(Base):
+    __tablename__ = "syllabus_weights"
+
+    weight_id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
+    )
+
+    subject = Column(
+        String(100),
+        nullable=False
+    )
+
+    topic = Column(
+        String(255),
+        nullable=False
+    )
+
+    # 0.0 - 1.0, how heavily this topic counts in the exam/syllabus
+    weight = Column(
+        Float,
+        nullable=False,
+        default=1.0
+    )
+
+    # Optional - matches Student.board / Student.grade for
+    # future board/grade-specific weighting. Not used by the
+    # Week 4 Struggle Algorithm, but safe to have now.
+    board = Column(
+        String(100),
+        nullable=True
+    )
+
+    grade = Column(
+        String(50),
+        nullable=True
+    )
+
+    # Optional - lets a topic point to a parent topic later
+    # (e.g. "Kinematics" under "Mechanics") without forcing any
+    # tree-walking logic to be built right now.
+    parent_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey(
+            "syllabus_weights.weight_id",
+            ondelete="SET NULL"
+        ),
+        nullable=True
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_syllabus_weights_subject_topic",
+            "subject",
+            "topic",
+            unique=True
+        ),
+    )
+
+
 class Test(Base):
     __tablename__ = "tests"
 
