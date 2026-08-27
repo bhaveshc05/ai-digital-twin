@@ -1,6 +1,6 @@
 # 🤖 AI Digital Twin Full-Stack Monorepo
 
-A modern, high-performance AI Digital Twin application featuring a **React (Vite) Frontend**, dual backends with **Node.js Express API** and **FastAPI Python (Vector Store / AI Processing)**, supported by **PostgreSQL (pgvector)** and **Redis**.
+A modern, high-performance AI Digital Twin application that empowers students through active learning. It features a **React (Vite) Frontend**, dual backends with **Node.js Express API** and **FastAPI Python (Vector Store / AI Processing)**, supported by **PostgreSQL (pgvector)** and **Redis**.
 
 ---
 
@@ -18,13 +18,23 @@ graph TD
 
 ---
 
-## ⚡ Key Features
+## ⚡ Core Features
 
-- **React Frontend**: Built with Vite, React-Bootstrap, and React Router. Includes live backend connectivity status pills in the navigation bar.
-- **Node.js Express Backend**: Primary API server handling database sessions, user profiles, and CRUD logic.
-- **FastAPI Python Backend**: AI/Vector embedding engine integrated with `pgvector` for semantic search and async task processing via Redis.
-- **PostgreSQL + pgvector**: Relational database extended with vector similarity search (`hnsw` index).
-- **One-Command Startup**: Launch all microservices, database, and Redis cache in **one go** using standard dev scripts or Docker Compose.
+- **File Ingestion & Background Processing**: 
+  - Drag-and-drop PDF upload UI.
+  - Background async text extraction using `pdfplumber` & Tesseract OCR via Celery + Redis, preventing UI freezes.
+  - Generates 1536-dimensional semantic vector embeddings (via LangChain + Gemini/OpenAI) and stores them in PostgreSQL using `pgvector`.
+- **Bayesian Knowledge Tracing (BKT)**: 
+  - Tracks and updates student mastery scores dynamically based on quiz results.
+  - Provides a real-time mastery progress dashboard for parents and students.
+  - Uses Postgres snapshot versioning for historical progress tracking.
+- **Struggle Topic Predictor**:
+  - Algorithmic ranking of weak topics based on: `(1 - Mastery) × Syllabus Weight × Time Decay`.
+  - Node.js layer utilizes Redis caching to swiftly render a "Top Struggles" widget on the student dashboard.
+- **Grounded RAG Quiz Engine**:
+  - Auto-generates multi-choice quizzes strictly grounded in the student's uploaded notes.
+  - Uses LangChain RAG vector retrieval (`cosine_distance` over `pgvector`) to find relevant material.
+  - Connects to Gemini 1.5 Flash to generate structured JSON containing questions, exact answers, explanations, and precise source citations.
 
 ---
 
@@ -38,14 +48,14 @@ ai-digital-twin/
 │   ├── models.py            # SQLAlchemy ORM Models
 │   └── session.py           # DB connection session factory
 ├── fastapi-backend/
-│   ├── app/                 # FastAPI application routes & main entrypoint
-│   ├── worker/              # Redis background tasks
+│   ├── app/                 # FastAPI application routes (RAG, BKT, LLM)
+│   ├── worker/              # Celery background tasks for PDF extraction
 │   └── Dockerfile
 ├── node-backend/
-│   ├── src/                 # Express controllers, routes, & db handlers
+│   ├── src/                 # Express controllers, routes, Redis caching
 │   └── Dockerfile
 ├── frontend/
-│   ├── src/                 # React components, pages, & API services
+│   ├── src/                 # React UI (Quiz UI, Uploads, Dashboard)
 │   └── Dockerfile
 ├── docker-compose.yml       # Multi-container orchestrator
 ├── package.json             # Root monorepo scripts
@@ -121,27 +131,27 @@ npm run docker:down
 
 ## 🌐 Service URLs & Health Endpoints
 
-| Service | Local URL | Health Endpoint | Description |
-| :--- | :--- | :--- | :--- |
-| **Frontend** | `http://localhost:5173` | - | React UI (Library & Test Page) |
-| **Node.js API** | `http://localhost:5000` | `http://localhost:5000/health` | Primary Express Backend |
-| **FastAPI** | `http://localhost:8000` | `http://localhost:8000/health` | Python AI Backend & Docs (`/docs`) |
-| **PostgreSQL** | `localhost:5434` | - | `twin_db` database |
-| **Redis** | `localhost:6379` | - | Cache & Queue |
+| Service | Local URL | Description |
+| :--- | :--- | :--- |
+| **Frontend** | `http://localhost:5173` | React UI (Dashboard, Quiz, Library) |
+| **Node.js API** | `http://localhost:5000` | Primary Express Backend & Auth |
+| **FastAPI** | `http://localhost:8000` | Python AI Backend, RAG, & BKT |
+| **PostgreSQL** | `localhost:5434` | `twin_db` database |
+| **Redis** | `localhost:6379` | Cache & Queue |
 
 ---
 
 ## 🛠️ API Quick Reference
 
 ### Node.js Backend (`http://localhost:5000`)
-- `GET /health` - Database & Server Health Check
-- `GET /api/students` - List all registered students
-- `POST /api/students` - Create a student profile (`{ "email": "...", "full_name": "..." }`)
+- `POST /api/login` - Authenticate users
+- `GET /api/students/:student_id/top-struggles` - Ranked struggle predictions (Redis cached)
 
 ### FastAPI Backend (`http://localhost:8000`)
-- `GET /health` - FastAPI Health Check
-- `GET /api/v1/students` - List students via SQLAlchemy ORM
-- `GET /api/v1/chunks` - List knowledge chunk embeddings
+- `POST /api/v1/students` - Create a student profile
+- `POST /api/v1/upload-pdf` - Async PDF parsing and chunking
+- `POST /api/v1/tests/generate` - RAG-based LLM Quiz Generation
+- `POST /api/v1/mastery/update` - BKT Mastery engine updates
 
 ---
 
