@@ -21,9 +21,6 @@ export default function StudentProfile() {
 
   const studentId = user?.student_id || user?.id;
 
-  console.log("Logged-in user:", user);
-  console.log("Student ID:", studentId);
-
   const fetchMastery = async () => {
     if (!studentId) {
       setLoading(false);
@@ -46,8 +43,6 @@ export default function StudentProfile() {
 
       const data = await response.json();
 
-      console.log("MASTERY API RESPONSE:", data);
-
       /*
        * Backend may return:
        *
@@ -66,8 +61,6 @@ export default function StudentProfile() {
         : Array.isArray(data.data)
         ? data.data
         : [];
-
-      console.log("NORMALIZED MASTERY:", masteryData);
 
       setMastery(masteryData);
     } catch (err) {
@@ -307,8 +300,7 @@ export default function StudentProfile() {
                   className="rounded-pill px-3 py-2"
                   style={{
                     background: "#121212",
-                    border:
-                      "1px solid #334155",
+                    border: "1px solid #334155",
                     color: "#e2e8f0",
                   }}
                 >
@@ -340,12 +332,10 @@ export default function StudentProfile() {
                       <Card
                         className="h-100 border-0 p-4"
                         style={{
-                          background:
-                            "#1E293B",
+                          background: "#1E293B",
                           border:
                             "1px solid #334155",
-                          borderRadius:
-                            "18px",
+                          borderRadius: "18px",
                         }}
                       >
                         {/* Topic + Percentage */}
@@ -355,8 +345,7 @@ export default function StudentProfile() {
                             <div
                               className="small text-uppercase mb-1"
                               style={{
-                                color:
-                                  "#64748b",
+                                color: "#64748b",
                                 letterSpacing:
                                   "0.1em",
                               }}
@@ -367,8 +356,7 @@ export default function StudentProfile() {
                             <h5
                               className="mb-0"
                               style={{
-                                color:
-                                  "#f8fafc",
+                                color: "#f8fafc",
                               }}
                             >
                               {item.topic ||
@@ -380,20 +368,15 @@ export default function StudentProfile() {
                             className="fw-semibold"
                             style={{
                               color:
-                                percentage >=
-                                80
+                                percentage >= 80
                                   ? "#4ade80"
-                                  : percentage >=
-                                    50
+                                  : percentage >= 50
                                   ? "#facc15"
                                   : "#f87171",
-                              fontSize:
-                                "22px",
+                              fontSize: "22px",
                             }}
                           >
-                            {percentage.toFixed(
-                              2
-                            )}
+                            {percentage.toFixed(2)}
                             %
                           </div>
                         </div>
@@ -417,24 +400,18 @@ export default function StudentProfile() {
                         <div
                           className="mt-3 d-flex justify-content-between"
                           style={{
-                            color:
-                              "#94a3b8",
-                            fontSize:
-                              "13px",
+                            color: "#94a3b8",
+                            fontSize: "13px",
                           }}
                         >
                           <span>
                             Correct:{" "}
-                            {
-                              item.correct_answers
-                            }
+                            {item.correct_answers}
                           </span>
 
                           <span>
                             Total:{" "}
-                            {
-                              item.total_questions
-                            }
+                            {item.total_questions}
                           </span>
                         </div>
 
@@ -445,10 +422,8 @@ export default function StudentProfile() {
                           <div
                             className="mt-2"
                             style={{
-                              color:
-                                "#64748b",
-                              fontSize:
-                                "12px",
+                              color: "#64748b",
+                              fontSize: "12px",
                             }}
                           >
                             BKT Score:{" "}

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState, useContext } from 'react'
-import { AuthContext } from '../context/AuthContext'
 import {
   Badge,
   Button,
@@ -10,7 +9,10 @@ import {
   ProgressBar,
   Row,
   Stack,
+  Alert,
+  Spinner,
 } from 'react-bootstrap'
+import { AuthContext } from '../context/AuthContext'
 import {
   practiceQuestionBank,
   practiceSubjects,
@@ -48,7 +50,7 @@ const pageStyles = `
   border-radius: 22px;
   border: 1px solid #262626;
   background: linear-gradient(180deg, rgba(18, 18, 18, 0.96), rgba(10, 10, 10, 0.96));
-  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
 }
 
 .test-page-shell .mode-card:hover {
@@ -60,7 +62,6 @@ const pageStyles = `
 .test-page-shell .mode-card.active {
   border-color: #38bdf8;
   box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.18), 0 18px 40px rgba(0, 0, 0, 0.3);
-  background: linear-gradient(180deg, rgba(18, 18, 18, 0.98), rgba(10, 10, 10, 0.98));
 }
 
 .test-page-shell .mode-card .mode-icon {
@@ -98,11 +99,9 @@ const pageStyles = `
   background: #334155 !important;
   color: #e2e8f0 !important;
   text-align: left !important;
-  transition: border-color 150ms ease, background 150ms ease, color 150ms ease, transform 150ms ease;
 }
 
 .test-page-shell .question-option:hover {
-  transform: translateY(-1px);
   border-color: #3b5165 !important;
 }
 
@@ -129,7 +128,6 @@ const pageStyles = `
   inset: 16px;
   border-radius: 50%;
   border: 1px solid rgba(56, 189, 248, 0.16);
-  pointer-events: none;
 }
 
 .test-page-shell .mic-wrap::after {
@@ -142,8 +140,6 @@ const pageStyles = `
   height: 118px;
   border-radius: 50% !important;
   border: 1px solid #262626 !important;
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.36);
-  position: relative;
 }
 
 .test-page-shell .mic-button.idle {
@@ -152,26 +148,35 @@ const pageStyles = `
 }
 
 .test-page-shell .mic-button.listening {
-  background: linear-gradient(180deg, rgba(56, 189, 248, 0.28), rgba(56, 189, 248, 0.14)) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(56, 189, 248, 0.28),
+    rgba(56, 189, 248, 0.14)
+  ) !important;
   color: #d9f3ff !important;
   animation: pulseRing 1.8s ease-in-out infinite;
 }
 
 .test-page-shell .mic-button.speaking {
-  background: linear-gradient(180deg, rgba(18, 18, 18, 0.97), rgba(14, 14, 14, 0.97)) !important;
+  background: linear-gradient(
+    180deg,
+    rgba(18, 18, 18, 0.97),
+    rgba(14, 14, 14, 0.97)
+  ) !important;
   color: #38bdf8 !important;
-  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.24), 0 18px 32px rgba(0, 0, 0, 0.34);
 }
 
 @keyframes pulseRing {
   0% {
-    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.35), 0 18px 32px rgba(0, 0, 0, 0.34);
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.35);
   }
+
   70% {
-    box-shadow: 0 0 0 18px rgba(56, 189, 248, 0), 0 18px 32px rgba(0, 0, 0, 0.34);
+    box-shadow: 0 0 0 18px rgba(56, 189, 248, 0);
   }
+
   100% {
-    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0), 0 18px 32px rgba(0, 0, 0, 0.34);
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0);
   }
 }
 
@@ -216,172 +221,365 @@ const pageStyles = `
   scrollbar-width: thin;
   scrollbar-color: #262626 transparent;
 }
-
-.test-page-shell .custom-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.test-page-shell .custom-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.test-page-shell .custom-scroll::-webkit-scrollbar-thumb {
-  background: #262626;
-  border-radius: 3px;
-}
-
-.test-page-shell .custom-scroll::-webkit-scrollbar-thumb:hover {
-  background: #38bdf8;
-}
 `
 
 function formatDuration(totalSeconds) {
-  const safeSeconds = Math.max(
-    0,
-    Math.floor(totalSeconds)
-  )
-
-  const minutes = Math.floor(
-    safeSeconds / 60
-  )
-
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds || 0))
+  const minutes = Math.floor(safeSeconds / 60)
   const seconds = safeSeconds % 60
 
-  return `${String(minutes).padStart(
-    2,
-    '0'
-  )}:${String(seconds).padStart(2, '0')}`
+  return `${String(minutes).padStart(2, '0')}:${String(
+    seconds
+  ).padStart(2, '0')}`
 }
 
-function getElapsedSeconds(
-  startedAt,
-  completedAt
-) {
-  if (!startedAt) return 0
+function getElapsedSeconds(startedAt, completedAt) {
+  if (!startedAt || !completedAt) return 0
 
   return Math.max(
     0,
-    Math.round(
-      (completedAt - startedAt) / 1000
-    )
+    Math.round((completedAt - startedAt) / 1000)
   )
 }
 
-function buildGeneratedQuestions(
-  subjectIds,
-  requestedCount
-) {
+function buildGeneratedQuestions(subjectIds, requestedCount) {
   const selectedSet = new Set(subjectIds)
 
-  const filtered =
-    practiceQuestionBank.filter(
-      (question) =>
-        selectedSet.size === 0 ||
-        selectedSet.has(question.subjectId)
-    )
-
-  return filtered.slice(
-    0,
-    requestedCount
+  const filtered = practiceQuestionBank.filter(
+    (question) =>
+      selectedSet.size === 0 ||
+      selectedSet.has(question.subjectId)
   )
+
+  return filtered.slice(0, requestedCount)
 }
 
-function normalizeGeneratedQuestions(
-  rawQuestions
-) {
+/*
+ * Convert values such as:
+ *
+ * A
+ * a
+ * option A
+ * Option A
+ * 0
+ * "0"
+ * answer text
+ *
+ * into a comparable option id.
+ */
+function normalizeAnswerId(value, options = []) {
+  if (value === null || value === undefined) {
+    return null
+  }
+
+  const raw = String(value).trim()
+
+  if (!raw) return null
+
+  const lower = raw.toLowerCase()
+
+  const directMatch = options.find(
+    (option) =>
+      String(option.id).toLowerCase() === lower
+  )
+
+  if (directMatch) {
+    return directMatch.id
+  }
+
+  const letterMatch = lower.match(
+    /^(?:option|answer|choice)?\s*[\(\[]?([a-z])[\)\]]?$/
+  )
+
+  if (letterMatch) {
+    const letter = letterMatch[1]
+
+    const letterMatchOption = options.find(
+      (option) =>
+        String(option.id).toLowerCase() === letter
+    )
+
+    if (letterMatchOption) {
+      return letterMatchOption.id
+    }
+  }
+
+  const numericValue = Number(raw)
+
+  if (
+    Number.isInteger(numericValue) &&
+    numericValue >= 0 &&
+    numericValue < options.length
+  ) {
+    return options[numericValue].id
+  }
+
+  const textMatch = options.find(
+    (option) =>
+      String(option.text).trim().toLowerCase() === lower
+  )
+
+  if (textMatch) {
+    return textMatch.id
+  }
+
+  return raw
+}
+
+/*
+ * Handles all common backend formats:
+ *
+ * data.questions
+ * data.test.questions
+ * data.data.questions
+ * data.items
+ * data.test_questions
+ * data.results
+ * data itself as an array
+ */
+function extractQuestionArray(payload) {
+  if (Array.isArray(payload)) {
+    return payload
+  }
+
+  if (!payload || typeof payload !== 'object') {
+    return []
+  }
+
+  const directKeys = [
+    'questions',
+    'test_questions',
+    'items',
+    'results',
+    'data',
+  ]
+
+  for (const key of directKeys) {
+    const value = payload[key]
+
+    if (Array.isArray(value)) {
+      return value
+    }
+  }
+
+  const nestedKeys = [
+    'test',
+    'response',
+    'result',
+    'generated_test',
+    'generatedTest',
+    'data',
+  ]
+
+  for (const key of nestedKeys) {
+    const value = payload[key]
+
+    if (value && typeof value === 'object') {
+      const nestedResult = extractQuestionArray(value)
+
+      if (nestedResult.length) {
+        return nestedResult
+      }
+    }
+  }
+
+  /*
+   * Some APIs return:
+   *
+   * {
+   *   "question_1": {...},
+   *   "question_2": {...}
+   * }
+   */
+  const objectValues = Object.values(payload)
+
+  const objectQuestionValues = objectValues.filter(
+    (value) =>
+      value &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      (
+        value.question ||
+        value.question_text ||
+        value.text
+      )
+  )
+
+  if (objectQuestionValues.length) {
+    return objectQuestionValues
+  }
+
+  return []
+}
+
+function normalizeGeneratedQuestions(rawPayload) {
+  const rawQuestions = extractQuestionArray(rawPayload)
+
   if (!Array.isArray(rawQuestions)) {
     return []
   }
 
-  return rawQuestions.map(
-    (question, index) => {
-      const rawOptions = Array.isArray(
-        question?.options
-      )
-        ? question.options
-        : Array.isArray(
-            question?.choices
-          )
-        ? question.choices
-        : Array.isArray(
-            question?.answers
-          )
-        ? question.answers
-        : []
+  return rawQuestions
+    .map((question, index) => {
+      if (!question || typeof question !== 'object') {
+        return null
+      }
 
-      const options = rawOptions.map(
-        (option, optionIndex) => {
+      const rawOptions =
+        Array.isArray(question.options)
+          ? question.options
+          : Array.isArray(question.choices)
+          ? question.choices
+          : Array.isArray(question.answers)
+          ? question.answers
+          : Array.isArray(question.answer_options)
+          ? question.answer_options
+          : Array.isArray(question.answerOptions)
+          ? question.answerOptions
+          : []
+
+      const options = rawOptions
+        .map((option, optionIndex) => {
           if (typeof option === 'string') {
             return {
-              id: String.fromCharCode(
-                97 + optionIndex
-              ),
+              id: String.fromCharCode(97 + optionIndex),
               text: option,
             }
           }
 
-          return {
-            id:
-              option?.id ||
-              option?.key ||
-              option?.value ||
-              String.fromCharCode(
-                97 + optionIndex
-              ),
-
-            text:
-              option?.text ||
-              option?.value ||
-              option?.label ||
-              '',
+          if (!option || typeof option !== 'object') {
+            return null
           }
-        }
+
+          const generatedId =
+            option.id ??
+            option.key ??
+            option.option_id ??
+            option.optionId ??
+            String.fromCharCode(97 + optionIndex)
+
+          const generatedText =
+            option.text ??
+            option.value ??
+            option.label ??
+            option.option_text ??
+            option.optionText ??
+            ''
+
+          return {
+            id: String(generatedId),
+            text: String(generatedText),
+          }
+        })
+        .filter(
+          (option) =>
+            option &&
+            option.text.trim().length > 0
+        )
+
+      const questionText =
+        question.question ??
+        question.question_text ??
+        question.questionText ??
+        question.text ??
+        question.prompt ??
+        ''
+
+      const id =
+        question.id ??
+        question.question_id ??
+        question.questionId ??
+        `generated-${index}`
+
+      const subjectName =
+        question.subjectName ??
+        question.subject_name ??
+        question.subject ??
+        question.domain ??
+        'General'
+
+      const category =
+        question.category ??
+        question.topic ??
+        question.topic_name ??
+        question.topicName ??
+        'General'
+
+      const sourceLabel =
+        question.sourceLabel ??
+        question.source_label ??
+        question.source ??
+        'Generated'
+
+      const rawCorrectAnswer =
+        question.correctOptionId ??
+        question.correct_option_id ??
+        question.correctOption ??
+        question.correct_option ??
+        question.correct_answer ??
+        question.correctAnswer ??
+        question.answer ??
+        question.expected_answer ??
+        question.expectedAnswer ??
+        null
+
+      const correctOptionId = normalizeAnswerId(
+        rawCorrectAnswer,
+        options
       )
 
       return {
         ...question,
 
-        id:
-          question?.id ||
-          question?.question_id ||
-          `generated-${index}`,
+        id: String(id),
 
-        question:
-          question?.question ||
-          question?.question_text ||
-          question?.text ||
-          'Question unavailable',
+        question: String(
+          questionText || 'Question unavailable'
+        ),
 
         options,
 
-        correctOptionId:
-          question?.correctOptionId ||
-          question?.correct_option_id ||
-          question?.correct_answer ||
-          question?.answer ||
-          null,
+        correctOptionId,
 
-        subjectName:
-          question?.subjectName ||
-          question?.subject ||
-          'General',
+        subjectName: String(
+          subjectName || 'General'
+        ),
 
-        category:
-          question?.category ||
-          question?.topic ||
-          'General',
+        category: String(
+          category || 'General'
+        ),
 
-        sourceLabel:
-          question?.sourceLabel ||
-          question?.source ||
-          'Generated',
+        sourceLabel: String(
+          sourceLabel || 'Generated'
+        ),
 
         sampleStudentResponse:
-          question?.sampleStudentResponse ||
-          question?.sample_student_response ||
+          question.sampleStudentResponse ??
+          question.sample_student_response ??
           '',
       }
-    }
+    })
+    .filter(
+      (question) =>
+        question &&
+        question.question &&
+        question.question !== 'Question unavailable'
+    )
+}
+
+/*
+ * Safely display the backend response in console.
+ * This is very useful if the API changes its shape again.
+ */
+function logGeneratedResponse(data) {
+  console.log(
+    'GENERATE TEST RAW RESPONSE:',
+    data
+  )
+
+  console.log(
+    'EXTRACTED QUESTION ARRAY:',
+    extractQuestionArray(data)
   )
 }
 
@@ -396,65 +594,64 @@ function createQuizResults(
       ? questions
       : []
 
-  const breakdown =
-    safeQuestions.map((question) => {
+  const breakdown = safeQuestions.map(
+    (question) => {
       const selectedOptionId =
-        answers?.[question.id] ||
-        null
+        answers?.[question.id] ?? null
 
       const options =
-        Array.isArray(question?.options)
+        Array.isArray(question.options)
           ? question.options
           : []
 
       const selectedOption =
         options.find(
           (option) =>
-            option.id ===
-            selectedOptionId
+            String(option.id) ===
+            String(selectedOptionId)
         ) || null
 
       const correctOption =
         options.find(
           (option) =>
-            option.id ===
-            question.correctOptionId
+            String(option.id) ===
+            String(question.correctOptionId)
         ) || null
+
+      const isCorrect =
+        selectedOptionId !== null &&
+        question.correctOptionId !== null &&
+        String(selectedOptionId) ===
+          String(question.correctOptionId)
 
       return {
         id: question.id,
 
         subjectName:
-          question.subjectName ||
-          'General',
+          question.subjectName || 'General',
 
         category:
-          question.category ||
-          'General',
+          question.category || 'General',
 
         sourceLabel:
-          question.sourceLabel ||
-          'Generated',
+          question.sourceLabel || 'Generated',
 
         question:
-          question.question ||
-          'Question unavailable',
+          question.question || 'Question unavailable',
 
         selectedOptionText:
-          selectedOption
-            ? selectedOption.text
-            : 'No answer selected',
+          selectedOption?.text ||
+          'No answer selected',
 
         correctOptionText:
-          correctOption
-            ? correctOption.text
-            : 'Unavailable',
+          correctOption?.text ||
+          question.correctOptionId ||
+          'Unavailable',
 
-        isCorrect:
-          selectedOptionId ===
-          question.correctOptionId,
+        isCorrect,
       }
-    })
+    }
+  )
 
   const correctCount =
     breakdown.filter(
@@ -467,17 +664,13 @@ function createQuizResults(
   return {
     accuracy: breakdown.length
       ? Math.round(
-          (correctCount /
-            breakdown.length) *
-            100
+          (correctCount / breakdown.length) * 100
         )
       : 0,
 
     correctCount,
     incorrectCount,
-
-    reviewedCount:
-      breakdown.length,
+    reviewedCount: breakdown.length,
 
     timeElapsedSeconds:
       getElapsedSeconds(
@@ -545,8 +738,7 @@ function createVivaResults(
     strengths,
     areasToImprove,
     reviewedCount: pairedCount,
-    sourceQuestionCount:
-      questionCount,
+    sourceQuestionCount: questionCount,
 
     timeElapsedSeconds:
       getElapsedSeconds(
@@ -727,15 +919,11 @@ function ResultsShell({
       <Row
         className={`g-3 row-cols-1 row-cols-md-2 ${summaryClassName}`}
       >
-        {safeSummaryCards.map(
-          (card) => (
-            <Col key={card.title}>
-              <ResultsMetricCard
-                {...card}
-              />
-            </Col>
-          )
-        )}
+        {safeSummaryCards.map((card) => (
+          <Col key={card.title}>
+            <ResultsMetricCard {...card} />
+          </Col>
+        ))}
       </Row>
 
       {footerNote ? (
@@ -745,19 +933,11 @@ function ResultsShell({
           style={{ padding: 18 }}
         >
           <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
-            <div
-              style={{
-                color: '#8a94a6',
-              }}
-            >
+            <div style={{ color: '#8a94a6' }}>
               {footerNote.left}
             </div>
 
-            <div
-              style={{
-                color: '#cbd5e1',
-              }}
-            >
+            <div style={{ color: '#cbd5e1' }}>
               {footerNote.right}
             </div>
           </div>
@@ -770,8 +950,7 @@ function ResultsShell({
 }
 
 export default function TestPage() {
-  const { user } =
-    useContext(AuthContext)
+  const { user } = useContext(AuthContext)
 
   const [sessionState, setSessionState] =
     useState('setup')
@@ -851,6 +1030,16 @@ export default function TestPage() {
     setDisplayNow,
   ] = useState(() => Date.now())
 
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState('')
+
+  const [
+    initializing,
+    setInitializing,
+  ] = useState(false)
+
   useEffect(() => {
     if (
       sessionState !== 'quiz' &&
@@ -865,29 +1054,20 @@ export default function TestPage() {
       }, 1000)
 
     return () =>
-      window.clearInterval(
-        intervalId
-      )
-  }, [
-    sessionState,
-    sessionStartedAt,
-  ])
+      window.clearInterval(intervalId)
+  }, [sessionState, sessionStartedAt])
 
   const subjectMap = useMemo(() => {
     const safeSubjects =
-      Array.isArray(
-        practiceSubjects
-      )
+      Array.isArray(practiceSubjects)
         ? practiceSubjects
         : []
 
     return new Map(
-      safeSubjects.map(
-        (subject) => [
-          subject.id,
-          subject,
-        ]
-      )
+      safeSubjects.map((subject) => [
+        subject.id,
+        subject,
+      ])
     )
   }, [])
 
@@ -910,16 +1090,14 @@ export default function TestPage() {
       : []
 
   const currentQuestion =
-    activeQuestions[
-      currentQuestionIndex
-    ] || null
+    activeQuestions[currentQuestionIndex] ||
+    null
 
   const elapsedSeconds =
     sessionStartedAt
       ? getElapsedSeconds(
           sessionStartedAt,
-          sessionCompletedAt ??
-            displayNow
+          sessionCompletedAt ?? displayNow
         )
       : 0
 
@@ -931,131 +1109,262 @@ export default function TestPage() {
       ? selectedSubjects
           .map(
             (subjectId) =>
-              subjectMap.get(
-                subjectId
-              )?.name
+              subjectMap.get(subjectId)?.name
           )
           .filter(Boolean)
       : practiceSubjects.map(
           (subject) => subject.name
         )
 
-  const initializeSession =
-    async () => {
+  /*
+   * ============================================================
+   * INITIALIZE SESSION
+   * ============================================================
+   */
+  const initializeSession = async () => {
+    if (initializing) return
+
+    console.log('🔥 INITIALIZE SESSION CLICKED')
+
+    setErrorMessage('')
+    setInitializing(true)
+
+    try {
+      /*
+       * ----------------------------------------------------------
+       * GET LOGGED-IN STUDENT
+       * ----------------------------------------------------------
+       */
+      const storedUser = JSON.parse(
+        localStorage.getItem('user') || 'null'
+      )
+
+      console.log(
+        'STORED USER:',
+        storedUser
+      )
+
+      const studentId =
+        storedUser?.student_id ||
+        storedUser?.studentId ||
+        storedUser?.id ||
+        user?.student_id ||
+        user?.studentId ||
+        user?.id
+
+      console.log(
+        'STUDENT ID USED:',
+        studentId
+      )
+
+      if (!studentId) {
+        throw new Error(
+          'No logged-in student found. Please login again.'
+        )
+      }
+
+      /*
+       * ----------------------------------------------------------
+       * TOPIC
+       * ----------------------------------------------------------
+       */
+      const topic =
+        selectedSubjectNames.length
+          ? selectedSubjectNames.join(', ')
+          : 'General'
+
+      console.log(
+        'SELECTED TOPIC:',
+        topic
+      )
+
+      /*
+       * ----------------------------------------------------------
+       * GET STUDENT DOCUMENTS
+       * ----------------------------------------------------------
+       */
+      const documentUrl =
+        `${API_URL}/api/v1/documents/${studentId}`
+
+      console.log(
+        'FETCHING DOCUMENTS FROM:',
+        documentUrl
+      )
+
+      const documentResponse =
+        await fetch(documentUrl)
+
+      if (!documentResponse.ok) {
+        const errorText =
+          await documentResponse.text()
+
+        throw new Error(
+          `Failed to fetch student documents: ${documentResponse.status} ${errorText}`
+        )
+      }
+
+      const documentData =
+        await documentResponse.json()
+
+      console.log(
+        'STUDENT DOCUMENT RESPONSE:',
+        documentData
+      )
+
+      const documentList =
+        Array.isArray(documentData)
+          ? documentData
+          : Array.isArray(
+              documentData?.documents
+            )
+          ? documentData.documents
+          : Array.isArray(
+              documentData?.data
+            )
+          ? documentData.data
+          : []
+
+      console.log(
+        'DOCUMENT LIST:',
+        documentList
+      )
+
+      console.log(
+        'DOCUMENT COUNT:',
+        documentList.length
+      )
+
+      if (!documentList.length) {
+        throw new Error(
+          `No document found for student ${studentId}. Please upload a PDF first.`
+        )
+      }
+
+      /*
+       * ----------------------------------------------------------
+       * SELECT DOCUMENT
+       * ----------------------------------------------------------
+       */
+      const selectedDocument =
+        documentList[0]
+
+      const documentId =
+        selectedDocument?.document_id ||
+        selectedDocument?.documentId ||
+        selectedDocument?.id
+
+      console.log(
+        'SELECTED DOCUMENT:',
+        selectedDocument
+      )
+
+      console.log(
+        'DOCUMENT ID:',
+        documentId
+      )
+
+      if (!documentId) {
+        throw new Error(
+          'Document found, but document_id is missing.'
+        )
+      }
+
+      /*
+       * ----------------------------------------------------------
+       * GENERATE TEST
+       * ----------------------------------------------------------
+       */
+      const generateUrl =
+        `${API_URL}/api/v1/tests/generate`
+
+      const requestBody = {
+        student_id: studentId,
+        document_id: documentId,
+        num_questions: questionCount,
+        topic,
+      }
+
+      console.log(
+        'GENERATING TEST:',
+        generateUrl
+      )
+
+      console.log(
+        'GENERATE TEST REQUEST:',
+        requestBody
+      )
+
+      const response =
+        await fetch(generateUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/json',
+          },
+          body: JSON.stringify(
+            requestBody
+          ),
+        })
+
+      const responseText =
+        await response.text()
+
+      console.log(
+        'RAW GENERATE RESPONSE:',
+        responseText
+      )
+
+      if (!response.ok) {
+        throw new Error(
+          `Test generation failed: ${response.status} ${responseText}`
+        )
+      }
+
+      let data
+
       try {
-        const topic =
-          selectedSubjectNames.length
-            ? selectedSubjectNames.join(
-                ', '
-              )
-            : 'General'
+        data = JSON.parse(responseText)
+      } catch {
+        throw new Error(
+          'Backend returned an invalid JSON response.'
+        )
+      }
 
-        const studentId =
-          user?.student_id ||
-          user?.id ||
-          'unknown'
+      logGeneratedResponse(data)
 
-        const res = await fetch(
-          `${API_URL}/api/v1/tests/generate`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type':
-                'application/json',
-            },
-            body: JSON.stringify({
-              student_id: studentId,
-              num_questions:
-                questionCount,
-              topic,
-            }),
-          }
+      /*
+       * ----------------------------------------------------------
+       * NORMALIZE QUESTIONS
+       * ----------------------------------------------------------
+       */
+      let generatedQuestions =
+        normalizeGeneratedQuestions(data)
+
+      console.log(
+        'NORMALIZED QUESTIONS:',
+        generatedQuestions
+      )
+
+      console.log(
+        'NORMALIZED QUESTION COUNT:',
+        generatedQuestions.length
+      )
+
+      /*
+       * ----------------------------------------------------------
+       * FALLBACK TO LOCAL BANK
+       *
+       * Only used if backend really returned no questions.
+       * This prevents the UI from becoming completely unusable
+       * during development.
+       * ----------------------------------------------------------
+       */
+      if (!generatedQuestions.length) {
+        console.warn(
+          'Backend returned no usable questions. Trying local question bank.'
         )
 
-        if (!res.ok) {
-          throw new Error(
-            `Test generation failed: ${res.status}`
-          )
-        }
-
-        const data =
-          await res.json()
-
-        console.log(
-          'GENERATE TEST RESPONSE:',
-          data
-        )
-
-        let generatedQuestions =
-          normalizeGeneratedQuestions(
-            data?.questions
-          )
-
-        if (
-          !generatedQuestions.length
-        ) {
-          generatedQuestions =
-            normalizeGeneratedQuestions(
-              buildGeneratedQuestions(
-                selectedSubjects,
-                questionCount
-              )
-            )
-        }
-
-        if (mode === 'quiz') {
-          generatedQuestions =
-            generatedQuestions.filter(
-              (question) =>
-                Array.isArray(
-                  question.options
-                ) &&
-                question.options.length >
-                  0
-            )
-        }
-
-        if (
-          !generatedQuestions.length
-        ) {
-          generatedQuestions =
-            normalizeGeneratedQuestions(
-              buildGeneratedQuestions(
-                selectedSubjects,
-                questionCount
-              )
-            )
-        }
-
-        setQuestions(
-          generatedQuestions
-        )
-
-        setAnswers({})
-        setCurrentQuestionIndex(0)
-        setTranscript([])
-        setMicState('idle')
-        setQuizResults(null)
-        setMasteryResult(null)
-        setVivaResults(null)
-        setExpandedRows({})
-        setSessionStartedAt(
-          Date.now()
-        )
-        setSessionCompletedAt(null)
-
-        setSessionState(
-          mode === 'quiz'
-            ? 'quiz'
-            : 'viva'
-        )
-      } catch (e) {
-        console.error(
-          'Failed to generate test questions',
-          e
-        )
-
-        const generatedQuestions =
+        generatedQuestions =
           normalizeGeneratedQuestions(
             buildGeneratedQuestions(
               selectedSubjects,
@@ -1063,30 +1372,64 @@ export default function TestPage() {
             )
           )
 
-        setQuestions(
+        console.log(
+          'FALLBACK QUESTIONS:',
           generatedQuestions
         )
+      }
 
-        setAnswers({})
-        setCurrentQuestionIndex(0)
-        setTranscript([])
-        setMicState('idle')
-        setQuizResults(null)
-        setMasteryResult(null)
-        setVivaResults(null)
-        setExpandedRows({})
-        setSessionStartedAt(
-          Date.now()
-        )
-        setSessionCompletedAt(null)
-
-        setSessionState(
-          mode === 'quiz'
-            ? 'quiz'
-            : 'viva'
+      if (!generatedQuestions.length) {
+        throw new Error(
+          'The backend successfully responded, but no usable questions were returned. Check the FastAPI /tests/generate response format.'
         )
       }
+
+      /*
+       * ----------------------------------------------------------
+       * START SESSION
+       * ----------------------------------------------------------
+       */
+      setQuestions(
+        generatedQuestions
+      )
+
+      setCurrentQuestionIndex(0)
+      setAnswers({})
+      setTranscript([])
+      setQuizResults(null)
+      setVivaResults(null)
+      setMasteryResult(null)
+      setExpandedRows({})
+      setSessionCompletedAt(null)
+
+      const startedAt = Date.now()
+
+      setSessionStartedAt(startedAt)
+
+      setSessionState(
+        mode === 'quiz'
+          ? 'quiz'
+          : 'viva'
+      )
+
+      console.log(
+        '✅ TEST SESSION INITIALIZED SUCCESSFULLY'
+      )
+
+    } catch (error) {
+      console.error(
+        '❌ Failed to generate test questions:',
+        error
+      )
+
+      setErrorMessage(
+        error?.message ||
+          'Failed to initialize test session.'
+      )
+    } finally {
+      setInitializing(false)
     }
+  }
 
   const resetToSetup = () => {
     setSessionState('setup')
@@ -1106,11 +1449,11 @@ export default function TestPage() {
     setSubmitting(false)
     setVivaResults(null)
     setExpandedRows({})
+    setErrorMessage('')
+    setInitializing(false)
   }
 
-  const toggleSubject = (
-    subjectId
-  ) => {
+  const toggleSubject = (subjectId) => {
     setSelectedSubjects((prev) =>
       prev.includes(subjectId)
         ? prev.filter(
@@ -1121,9 +1464,7 @@ export default function TestPage() {
     )
   }
 
-  const toggleExpandedRow = (
-    rowId
-  ) => {
+  const toggleExpandedRow = (rowId) => {
     setExpandedRows((prev) => ({
       ...prev,
       [rowId]: !prev[rowId],
@@ -1141,132 +1482,152 @@ export default function TestPage() {
   }
 
   /*
-   * FINAL QUIZ SUBMISSION
-   *
-   * 1. Calculate frontend quiz result
-   * 2. Send each answer to mastery endpoint
-   * 3. Receive BKT mastery response
-   * 4. Store mastery response in React
-   * 5. Show mastery on Results page
+   * ============================================================
+   * QUIZ SUBMISSION
+   * ============================================================
    */
   const handleSubmitQuiz = async () => {
-  if (submitting) return;
+    if (submitting) return
 
-  const completedAt = Date.now();
+    const completedAt =
+      Date.now()
 
-  const result = createQuizResults(
-    questions,
-    answers,
-    sessionStartedAt,
-    completedAt
-  );
+    const result =
+      createQuizResults(
+        questions,
+        answers,
+        sessionStartedAt,
+        completedAt
+      )
 
-  setSubmitting(true);
-  setQuizResults(result);
-  setSessionCompletedAt(completedAt);
+    setSubmitting(true)
+    setQuizResults(result)
+    setSessionCompletedAt(
+      completedAt
+    )
 
-  // Check logged-in student
-  if (!user || (!user.student_id && !user.id)) {
-    console.warn(
-      "No logged-in student found. Mastery was not updated."
-    );
+    const studentId =
+      user?.student_id ||
+      user?.studentId ||
+      user?.id ||
+      JSON.parse(
+        localStorage.getItem('user') ||
+          'null'
+      )?.student_id ||
+      JSON.parse(
+        localStorage.getItem('user') ||
+          'null'
+      )?.studentId ||
+      JSON.parse(
+        localStorage.getItem('user') ||
+          'null'
+      )?.id
 
-    setSubmitting(false);
-    setSessionState("results");
-    return;
-  }
+    if (!studentId) {
+      console.warn(
+        'No logged-in student found. Mastery was not updated.'
+      )
 
-  const studentId = user.student_id || user.id;
+      setSubmitting(false)
+      setSessionState('results')
+      return
+    }
 
-  try {
-    /*
-     * Store mastery response for each topic.
-     *
-     * Example:
-     * Python -> Variables
-     * Python -> Loops
-     * DSA -> Algorithms
-     */
-    const masteryResults = {};
+    try {
+      const masteryResults = {}
 
-    for (const item of result.breakdown) {
-      const subject = item.subjectName || "General";
-      const topic = item.category || "General";
+      for (const item of result.breakdown) {
+        const subject =
+          item.subjectName ||
+          'General'
 
-      try {
-        const response = await fetch(
-          `${API_URL}/api/v1/mastery/update`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              student_id: studentId,
-              subject: subject,
-              topic: topic,
-              is_correct: Boolean(item.isCorrect),
-            }),
+        const topic =
+          item.category ||
+          'General'
+
+        try {
+          const response =
+            await fetch(
+              `${API_URL}/api/v1/mastery/update`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type':
+                    'application/json',
+                },
+                body: JSON.stringify({
+                  student_id:
+                    studentId,
+                  subject,
+                  topic,
+                  is_correct:
+                    Boolean(
+                      item.isCorrect
+                    ),
+                }),
+              }
+            )
+
+          if (!response.ok) {
+            const errorText =
+              await response.text()
+
+            throw new Error(
+              `Mastery update failed: ${response.status} ${errorText}`
+            )
           }
-        );
 
-        if (!response.ok) {
-          const errorText = await response.text();
+          const masteryData =
+            await response.json()
 
-          throw new Error(
-            `Mastery update failed: ${response.status} ${errorText}`
-          );
+          console.log(
+            `MASTERY UPDATED: ${subject} -> ${topic}`,
+            masteryData
+          )
+
+          masteryResults[
+            `${subject}-${topic}`
+          ] = masteryData
+        } catch (error) {
+          console.error(
+            `Failed to update mastery for ${subject} -> ${topic}:`,
+            error
+          )
         }
+      }
 
-        const masteryData = await response.json();
+      const allMasteryResults =
+        Object.values(
+          masteryResults
+        )
+
+      if (allMasteryResults.length) {
+        /*
+         * Store all mastery results.
+         */
+        setMasteryResult(
+          allMasteryResults
+        )
 
         console.log(
-          `MASTERY UPDATED: ${subject} -> ${topic}`,
-          masteryData
-        );
-
-        /*
-         * Keep the latest mastery for this topic.
-         * If multiple questions belong to the same topic,
-         * the last response contains the updated value.
-         */
-        masteryResults[`${subject}-${topic}`] = masteryData;
-      } catch (error) {
-        console.error(
-          `Failed to update mastery for ${subject} -> ${topic}:`,
-          error
-        );
+          'FINAL MASTERY RESULTS:',
+          allMasteryResults
+        )
+      } else {
+        console.warn(
+          'No mastery response received.'
+        )
       }
+    } catch (error) {
+      console.error(
+        'Mastery processing failed:',
+        error
+      )
+    } finally {
+      setSubmitting(false)
+      setSessionState('results')
     }
-
-    /*
-     * Save all topic mastery results.
-     *
-     * If your UI currently expects only one mastery object,
-     * this will still keep the last updated topic.
-     */
-    const allMasteryResults = Object.values(masteryResults);
-
-    if (allMasteryResults.length > 0) {
-      setMasteryResult(allMasteryResults);
-
-      console.log(
-        "FINAL MASTERY RESULTS:",
-        allMasteryResults
-      );
-    } else {
-      console.warn("No mastery response received.");
-    }
-  } catch (error) {
-    console.error(
-      "Mastery processing failed:",
-      error
-    );
-  } finally {
-    setSubmitting(false);
-    setSessionState("results");
   }
-};
 
   const completedExchangesCount =
     useMemo(() => {
@@ -1276,6 +1637,11 @@ export default function TestPage() {
       ).length
     }, [transcript])
 
+  /*
+   * ============================================================
+   * VIVA
+   * ============================================================
+   */
   const handleMicClick = () => {
     if (!questions.length) return
 
@@ -1290,16 +1656,17 @@ export default function TestPage() {
           questions[
             questionIndex %
               questions.length
-          ] ||
-          practiceQuestionBank[
-            questionIndex %
-              practiceQuestionBank.length
           ]
 
         return [
           ...prev,
           {
-            id: crypto.randomUUID(),
+            id:
+              typeof crypto !==
+              'undefined' &&
+              crypto.randomUUID
+                ? crypto.randomUUID()
+                : `viva-${Date.now()}`,
 
             questionPreview:
               question.question,
@@ -1400,6 +1767,11 @@ export default function TestPage() {
     },
   ]
 
+  /*
+   * ============================================================
+   * SETUP VIEW
+   * ============================================================
+   */
   const setupView = (
     <Row className="g-4 align-items-start">
       <Col xxl={8}>
@@ -1408,8 +1780,7 @@ export default function TestPage() {
             <div
               className="text-uppercase small mb-2"
               style={{
-                letterSpacing:
-                  '0.16em',
+                letterSpacing: '0.16em',
                 color: '#8a94a6',
               }}
             >
@@ -1426,6 +1797,27 @@ export default function TestPage() {
               Choose your practice flow
             </h2>
           </div>
+
+          {errorMessage ? (
+            <Alert
+              variant="danger"
+              className="mb-4"
+              style={{
+                background: '#450a0a',
+                border:
+                  '1px solid #991b1b',
+                color: '#fca5a5',
+              }}
+            >
+              <strong>
+                Unable to initialize session
+              </strong>
+
+              <div className="mt-1">
+                {errorMessage}
+              </div>
+            </Alert>
+          ) : null}
 
           <div className="mb-4">
             <div className="d-flex align-items-center justify-content-between mb-3">
@@ -1489,9 +1881,7 @@ export default function TestPage() {
                                   '#f8fafc',
                               }}
                             >
-                              {
-                                card.title
-                              }
+                              {card.title}
                             </div>
 
                             <div
@@ -1650,7 +2040,6 @@ export default function TestPage() {
                 )
               }
               placeholder="Add any reminders, focus areas, or constraints for this session..."
-              className="border-0"
               style={{
                 borderRadius: 20,
                 background: '#0d0d0d',
@@ -1670,8 +2059,7 @@ export default function TestPage() {
             <div
               className="text-uppercase small mb-1"
               style={{
-                letterSpacing:
-                  '0.16em',
+                letterSpacing: '0.16em',
                 color: '#8a94a6',
               }}
             >
@@ -1811,8 +2199,8 @@ export default function TestPage() {
                 {
                   setupPreviewQuestions.length
                 }{' '}
-                mock questions currently available
-                for this selection.
+                mock questions currently
+                available for this selection.
               </div>
             </Card>
 
@@ -1855,13 +2243,26 @@ export default function TestPage() {
               onClick={
                 initializeSession
               }
-              disabled={!mode}
+              disabled={
+                !mode || initializing
+              }
               style={{
                 borderRadius: 18,
                 minHeight: 56,
               }}
             >
-              Initialize Session
+              {initializing ? (
+                <>
+                  <Spinner
+                    size="sm"
+                    animation="border"
+                    className="me-2"
+                  />
+                  Generating Questions...
+                </>
+              ) : (
+                'Initialize Session'
+              )}
             </Button>
           </Stack>
         </Card>
@@ -1869,10 +2270,15 @@ export default function TestPage() {
     </Row>
   )
 
+  /*
+   * ============================================================
+   * QUIZ VIEW
+   * ============================================================
+   */
   const quizView =
     currentQuestion ? (
       <div className="d-flex flex-column gap-4">
-        <div className="hero-shell p-4 p-xl-5 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 gap-lg-4">
+        <div className="hero-shell p-4 p-xl-5 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
           <div>
             <div
               className="text-uppercase small mb-2"
@@ -1910,8 +2316,7 @@ export default function TestPage() {
                 fontSize: 13,
               }}
             >
-              Objective practice with answer
-              review
+              Objective practice with answer review
             </div>
           </div>
         </div>
@@ -1959,83 +2364,78 @@ export default function TestPage() {
           </h3>
 
           <div className="d-grid gap-3">
-            {(
-              Array.isArray(
-                currentQuestion.options
-              )
-                ? currentQuestion.options
-                : []
-            ).map((option) => {
-              const selected =
-                answers[
-                  currentQuestion.id
-                ] === option.id
+            {currentQuestion.options.map(
+              (option) => {
+                const selected =
+                  String(
+                    answers[
+                      currentQuestion.id
+                    ]
+                  ) ===
+                  String(option.id)
 
-              return (
-                <Button
-                  key={option.id}
-                  type="button"
-                  className={`question-option ${
-                    selected
-                      ? 'active'
-                      : ''
-                  }`}
-                  variant="secondary"
-                  onClick={() =>
-                    handleAnswerSelect(
-                      currentQuestion.id,
-                      option.id
-                    )
-                  }
-                >
-                  <div className="d-flex align-items-start gap-3">
-                    <div
-                      className="d-inline-flex align-items-center justify-content-center"
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: 10,
-                        border:
-                          '1px solid #262626',
-                        background:
-                          selected
-                            ? 'rgba(56, 189, 248, 0.16)'
-                            : '#121212',
-                        color:
-                          selected
-                            ? '#7dd3fc'
-                            : '#8a94a6',
-                        flex:
-                          '0 0 auto',
-                      }}
-                    >
-                      {String(
+                return (
+                  <Button
+                    key={option.id}
+                    type="button"
+                    className={`question-option ${
+                      selected
+                        ? 'active'
+                        : ''
+                    }`}
+                    variant="secondary"
+                    onClick={() =>
+                      handleAnswerSelect(
+                        currentQuestion.id,
                         option.id
-                      ).toUpperCase()}
-                    </div>
+                      )
+                    }
+                  >
+                    <div className="d-flex align-items-start gap-3">
+                      <div
+                        className="d-inline-flex align-items-center justify-content-center"
+                        style={{
+                          width: 30,
+                          height: 30,
+                          borderRadius: 10,
+                          border:
+                            '1px solid #262626',
+                          background:
+                            selected
+                              ? 'rgba(56, 189, 248, 0.16)'
+                              : '#121212',
+                          color:
+                            selected
+                              ? '#7dd3fc'
+                              : '#8a94a6',
+                          flex:
+                            '0 0 auto',
+                        }}
+                      >
+                        {String(
+                          option.id
+                        ).toUpperCase()}
+                      </div>
 
-                    <div className="flex-grow-1">
-                      {option.text}
+                      <div className="flex-grow-1">
+                        {option.text}
+                      </div>
                     </div>
-                  </div>
-                </Button>
-              )
-            })}
+                  </Button>
+                )
+              }
+            )}
           </div>
 
-          {(!Array.isArray(
-            currentQuestion.options
-          ) ||
-            currentQuestion.options
-              .length === 0) && (
-            <div
-              className="alert alert-warning mt-3"
-              role="alert"
+          {!currentQuestion.options.length ? (
+            <Alert
+              variant="warning"
+              className="mt-3"
             >
               No answer options were returned
               for this question.
-            </div>
-          )}
+            </Alert>
+          ) : null}
 
           <div
             className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-3 mt-4 pt-4 border-top"
@@ -2069,20 +2469,11 @@ export default function TestPage() {
             </Button>
 
             <div
-              className="d-flex align-items-center gap-2"
               style={{
                 color: '#8a94a6',
               }}
             >
-              <i
-                className="bi bi-clock"
-                aria-hidden="true"
-              />
-
-              <span>
-                {elapsedLabel}{' '}
-                elapsed
-              </span>
+              {elapsedLabel} elapsed
             </div>
 
             <div className="d-flex gap-2">
@@ -2108,17 +2499,16 @@ export default function TestPage() {
                 >
                   Next
                 </Button>
-              ) : null}
-
-              {currentQuestionIndex ===
-              questions.length - 1 ? (
+              ) : (
                 <Button
                   type="button"
                   variant="primary"
                   onClick={
                     handleSubmitQuiz
                   }
-                  disabled={submitting}
+                  disabled={
+                    submitting
+                  }
                   style={{
                     minWidth: 132,
                     minHeight: 48,
@@ -2128,37 +2518,241 @@ export default function TestPage() {
                     ? 'Submitting...'
                     : 'Submit'}
                 </Button>
-              ) : null}
+              )}
             </div>
           </div>
         </Card>
       </div>
     ) : (
       <Card className="panel-surface p-5 text-center">
-        <h4
-          style={{
-            color: '#f8fafc',
-          }}
-        >
+        <h4 style={{ color: '#f8fafc' }}>
           No quiz questions available
         </h4>
 
-        <p
-          style={{
-            color: '#8a94a6',
-          }}
-        >
+        <p style={{ color: '#8a94a6' }}>
           Please return to setup and try again.
         </p>
 
-        <Button
-          onClick={resetToSetup}
-        >
+        <Button onClick={resetToSetup}>
           Return to Home
         </Button>
       </Card>
     )
 
+  /*
+   * ============================================================
+   * VIVA VIEW
+   * ============================================================
+   */
+  const vivaView = (
+    <div className="d-flex flex-column gap-4">
+      <div className="hero-shell p-4 p-xl-5 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+        <div>
+          <div
+            className="text-uppercase small mb-2"
+            style={{
+              letterSpacing: '0.16em',
+              color: '#8a94a6',
+            }}
+          >
+            Viva Mode
+          </div>
+
+          <h2
+            className="m-0 fw-semibold"
+            style={{
+              fontSize: 34,
+              color: '#f8fafc',
+            }}
+          >
+            Spoken Practice
+          </h2>
+        </div>
+
+        <div className="d-flex flex-column align-items-lg-end gap-2">
+          <Badge className="summary-badge rounded-pill px-3 py-2">
+            Timer {elapsedLabel}
+          </Badge>
+
+          <div
+            style={{
+              color: '#8a94a6',
+              fontSize: 13,
+            }}
+          >
+            {completedExchangesCount} exchanges completed
+          </div>
+        </div>
+      </div>
+
+      <Card className="panel-surface p-4 p-xl-5 text-center">
+        <div className="mb-4">
+          <div
+            className="text-uppercase small mb-2"
+            style={{
+              letterSpacing: '0.16em',
+              color: '#8a94a6',
+            }}
+          >
+            Voice Practice
+          </div>
+
+          <h3
+            style={{
+              color: '#f8fafc',
+            }}
+          >
+            Practice your explanation
+          </h3>
+
+          <p
+            style={{
+              color: '#8a94a6',
+            }}
+          >
+            Click the microphone to move through
+            examiner prompts and record responses.
+          </p>
+        </div>
+
+        <div className="mic-wrap">
+          <Button
+            type="button"
+            className={`mic-button ${micState}`}
+            onClick={handleMicClick}
+          >
+            <i
+              className={`bi ${
+                micState === 'listening'
+                  ? 'bi-mic'
+                  : micState ===
+                    'speaking'
+                  ? 'bi-volume-up'
+                  : 'bi-mic-mute'
+              }`}
+              style={{
+                fontSize: 34,
+              }}
+            />
+          </Button>
+        </div>
+
+        <div
+          className="mt-3 mb-4"
+          style={{
+            color: '#8a94a6',
+          }}
+        >
+          {micState === 'idle'
+            ? 'Click to hear the next prompt'
+            : micState === 'speaking'
+            ? 'Examiner is presenting the prompt'
+            : 'Click again to record the response'}
+        </div>
+
+        <Button
+          type="button"
+          variant="primary"
+          size="lg"
+          onClick={handleEndViva}
+          disabled={
+            completedExchangesCount === 0
+          }
+          style={{
+            minWidth: 180,
+            borderRadius: 16,
+          }}
+        >
+          End Viva
+        </Button>
+      </Card>
+
+      {transcript.length ? (
+        <Card className="panel-surface p-4 p-xl-5">
+          <div className="d-flex align-items-center justify-content-between mb-4">
+            <div>
+              <div
+                className="text-uppercase small mb-2"
+                style={{
+                  letterSpacing:
+                    '0.16em',
+                  color: '#8a94a6',
+                }}
+              >
+                Live Transcript
+              </div>
+
+              <h3
+                className="m-0"
+                style={{
+                  color: '#f8fafc',
+                }}
+              >
+                Current exchanges
+              </h3>
+            </div>
+
+            <Badge className="summary-badge rounded-pill px-3 py-2">
+              {transcript.length}
+            </Badge>
+          </div>
+
+          <div className="d-flex flex-column gap-3">
+            {transcript.map(
+              (entry) => (
+                <div
+                  key={entry.id}
+                  className="review-row p-4"
+                >
+                  <div
+                    className="fw-semibold mb-2"
+                    style={{
+                      color: '#f8fafc',
+                    }}
+                  >
+                    Examiner
+                  </div>
+
+                  <div
+                    className="mb-3"
+                    style={{
+                      color: '#cbd5e1',
+                    }}
+                  >
+                    {entry.examinerText}
+                  </div>
+
+                  <div
+                    className="fw-semibold mb-2"
+                    style={{
+                      color: '#f8fafc',
+                    }}
+                  >
+                    Student
+                  </div>
+
+                  <div
+                    style={{
+                      color: '#8a94a6',
+                    }}
+                  >
+                    {entry.studentText ||
+                      'Waiting for response...'}
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        </Card>
+      ) : null}
+    </div>
+  )
+
+  /*
+   * ============================================================
+   * RESULTS VIEW
+   * ============================================================
+   */
   const resultsView =
     sessionState === 'results' &&
     mode === 'quiz' &&
@@ -2178,12 +2772,36 @@ export default function TestPage() {
 
           {
             title: 'Mastery',
-            value: masteryResult
-              ? `${masteryResult.mastery_percentage}%`
-              : 'N/A',
+            value:
+              Array.isArray(
+                masteryResult
+              ) &&
+              masteryResult.length
+                ? `${Math.round(
+                    (
+                      masteryResult.reduce(
+                        (
+                          sum,
+                          item
+                        ) =>
+                          sum +
+                          Number(
+                            item.mastery_percentage ??
+                              item.mastery_score ??
+                              0
+                          ),
+                        0
+                      ) /
+                      masteryResult.length
+                    )
+                  )}%`
+                : 'N/A',
             subtitle:
-              masteryResult
-                ? `${masteryResult.subject} • ${masteryResult.topic}`
+              Array.isArray(
+                masteryResult
+              ) &&
+              masteryResult.length
+                ? `${masteryResult.length} topic updates`
                 : 'BKT-based mastery score',
             accent: true,
           },
@@ -2223,10 +2841,56 @@ export default function TestPage() {
           },
         ]}
         footerNote={{
-          left: 'Expanded rows show the selected answer and the expected answer for each item.',
-          right: `${quizResults.reviewedCount} questions reviewed`,
+          left:
+            'Expanded rows show the selected answer and the expected answer for each item.',
+          right:
+            `${quizResults.reviewedCount} questions reviewed`,
         }}
       >
+        {Array.isArray(
+          masteryResult
+        ) &&
+        masteryResult.length ? (
+          <Card className="panel-surface p-4">
+            <div
+              className="text-uppercase small mb-3"
+              style={{
+                letterSpacing:
+                  '0.16em',
+                color: '#8a94a6',
+              }}
+            >
+              Updated Mastery
+            </div>
+
+            <div className="d-flex flex-wrap gap-2">
+              {masteryResult.map(
+                (item, index) => (
+                  <Badge
+                    key={`${item.subject}-${item.topic}-${index}`}
+                    className="rounded-pill px-3 py-2"
+                  >
+                    {item.subject ||
+                      'General'}{' '}
+                    •{' '}
+                    {item.topic ||
+                      'General'}{' '}
+                    •{' '}
+                    {Math.round(
+                      Number(
+                        item.mastery_percentage ??
+                          item.mastery_score ??
+                          0
+                      )
+                    )}
+                    %
+                  </Badge>
+                )
+              )}
+            </div>
+          </Card>
+        ) : null}
+
         <Card className="panel-surface p-4 p-xl-5">
           <div className="d-flex align-items-center justify-content-between gap-3 mb-4">
             <div>
@@ -2260,126 +2924,119 @@ export default function TestPage() {
           </div>
 
           <div className="d-flex flex-column gap-3">
-            {Array.isArray(
-              quizResults.breakdown
-            ) &&
-              quizResults.breakdown.map(
-                (item) => {
-                  const expanded =
-                    Boolean(
-                      expandedRows[
-                        item.id
-                      ]
-                    )
-
-                  return (
-                    <ExpandableRow
-                      key={item.id}
-                      item={{
-                        ...item,
-                        questionPreview:
-                          item.question,
-                      }}
-                      expanded={
-                        expanded
-                      }
-                      onToggle={() =>
-                        toggleExpandedRow(
-                          item.id
-                        )
-                      }
-                      header={
-                        <>
-                          <Badge className="summary-badge rounded-pill px-3 py-2">
-                            {
-                              item.subjectName
-                            }
-                          </Badge>
-
-                          <Badge className="summary-badge rounded-pill px-3 py-2">
-                            {
-                              item.category
-                            }
-                          </Badge>
-
-                          <Badge
-                            bg={
-                              item.isCorrect
-                                ? 'success'
-                                : 'danger'
-                            }
-                            className="rounded-pill px-3 py-2"
-                          >
-                            {item.isCorrect
-                              ? 'Correct'
-                              : 'Incorrect'}
-                          </Badge>
-                        </>
-                      }
-                      details={
-                        <div
-                          style={{
-                            color:
-                              '#e2e8f0',
-                            lineHeight:
-                              1.6,
-                          }}
-                        >
-                          <div className="mb-2">
-                            <span
-                              style={{
-                                color:
-                                  '#8a94a6',
-                              }}
-                            >
-                              Source:
-                            </span>{' '}
-                            {
-                              item.sourceLabel
-                            }
-                          </div>
-
-                          <div className="mb-2">
-                            <span
-                              style={{
-                                color:
-                                  '#8a94a6',
-                              }}
-                            >
-                              Selected
-                              answer:
-                            </span>{' '}
-                            {
-                              item.selectedOptionText
-                            }
-                          </div>
-
-                          <div>
-                            <span
-                              style={{
-                                color:
-                                  '#8a94a6',
-                              }}
-                            >
-                              Correct
-                              answer:
-                            </span>{' '}
-                            {
-                              item.correctOptionText
-                            }
-                          </div>
-                        </div>
-                      }
-                      badge={null}
-                    />
+            {quizResults.breakdown.map(
+              (item) => {
+                const expanded =
+                  Boolean(
+                    expandedRows[
+                      item.id
+                    ]
                   )
-                }
-              )}
+
+                return (
+                  <ExpandableRow
+                    key={item.id}
+                    item={{
+                      ...item,
+                      questionPreview:
+                        item.question,
+                    }}
+                    expanded={
+                      expanded
+                    }
+                    onToggle={() =>
+                      toggleExpandedRow(
+                        item.id
+                      )
+                    }
+                    header={
+                      <>
+                        <Badge className="summary-badge rounded-pill px-3 py-2">
+                          {
+                            item.subjectName
+                          }
+                        </Badge>
+
+                        <Badge className="summary-badge rounded-pill px-3 py-2">
+                          {
+                            item.category
+                          }
+                        </Badge>
+
+                        <Badge
+                          bg={
+                            item.isCorrect
+                              ? 'success'
+                              : 'danger'
+                          }
+                          className="rounded-pill px-3 py-2"
+                        >
+                          {item.isCorrect
+                            ? 'Correct'
+                            : 'Incorrect'}
+                        </Badge>
+                      </>
+                    }
+                    details={
+                      <div
+                        style={{
+                          color:
+                            '#e2e8f0',
+                          lineHeight:
+                            1.6,
+                        }}
+                      >
+                        <div className="mb-2">
+                          <span
+                            style={{
+                              color:
+                                '#8a94a6',
+                            }}
+                          >
+                            Source:
+                          </span>{' '}
+                          {
+                            item.sourceLabel
+                          }
+                        </div>
+
+                        <div className="mb-2">
+                          <span
+                            style={{
+                              color:
+                                '#8a94a6',
+                            }}
+                          >
+                            Selected answer:
+                          </span>{' '}
+                          {
+                            item.selectedOptionText
+                          }
+                        </div>
+
+                        <div>
+                          <span
+                            style={{
+                              color:
+                                '#8a94a6',
+                            }}
+                          >
+                            Correct answer:
+                          </span>{' '}
+                          {
+                            item.correctOptionText
+                          }
+                        </div>
+                      </div>
+                    }
+                  />
+                )
+              }
+            )}
           </div>
         </Card>
       </ResultsShell>
-    ) : sessionState ===
-        'results' &&
+    ) : sessionState === 'results' &&
       mode === 'viva' &&
       vivaResults ? (
       <ResultsShell
@@ -2422,8 +3079,10 @@ export default function TestPage() {
           },
         ]}
         footerNote={{
-          left: 'Transcript entries expand to show the full examiner prompt and student response.',
-          right: `${vivaResults.reviewedCount} exchanges reviewed`,
+          left:
+            'Transcript entries expand to show the full examiner prompt and student response.',
+          right:
+            `${vivaResults.reviewedCount} exchanges reviewed`,
         }}
       >
         <Row className="g-3 mb-4">
@@ -2454,16 +3113,13 @@ export default function TestPage() {
                     1.7,
                 }}
               >
-                {Array.isArray(
-                  vivaResults.strengths
-                ) &&
-                  vivaResults.strengths.map(
-                    (item) => (
-                      <li key={item}>
-                        {item}
-                      </li>
-                    )
-                  )}
+                {vivaResults.strengths.map(
+                  (item) => (
+                    <li key={item}>
+                      {item}
+                    </li>
+                  )
+                )}
               </ul>
             </Card>
           </Col>
@@ -2495,16 +3151,13 @@ export default function TestPage() {
                     1.7,
                 }}
               >
-                {Array.isArray(
-                  vivaResults.areasToImprove
-                ) &&
-                  vivaResults.areasToImprove.map(
-                    (item) => (
-                      <li key={item}>
-                        {item}
-                      </li>
-                    )
-                  )}
+                {vivaResults.areasToImprove.map(
+                  (item) => (
+                    <li key={item}>
+                      {item}
+                    </li>
+                  )
+                )}
               </ul>
             </Card>
           </Col>
@@ -2544,10 +3197,7 @@ export default function TestPage() {
           </div>
 
           <div className="d-flex flex-column gap-3">
-            {Array.isArray(
-              vivaResults.transcript
-            ) &&
-            vivaResults.transcript.length ? (
+            {vivaResults.transcript.length ? (
               vivaResults.transcript.map(
                 (entry) => {
                   const expanded =
@@ -2570,10 +3220,6 @@ export default function TestPage() {
                             entry.id
                           )
                         }
-                        style={{
-                          outline:
-                            'none',
-                        }}
                       >
                         <div className="d-flex align-items-start justify-content-between gap-3">
                           <div className="flex-grow-1">
@@ -2611,9 +3257,8 @@ export default function TestPage() {
                               }}
                             >
                               Student:{' '}
-                              {
-                                entry.studentText
-                              }
+                              {entry.studentText ||
+                                'No response recorded'}
                             </div>
                           </div>
 
@@ -2623,7 +3268,6 @@ export default function TestPage() {
                                 ? 'bi-chevron-up'
                                 : 'bi-chevron-down'
                             }`}
-                            aria-hidden="true"
                             style={{
                               color:
                                 '#8a94a6',
@@ -2669,8 +3313,7 @@ export default function TestPage() {
                                       '#8a94a6',
                                   }}
                                 >
-                                  Examiner
-                                  prompt:
+                                  Examiner prompt:
                                 </span>{' '}
                                 {
                                   entry.examinerText
@@ -2684,11 +3327,11 @@ export default function TestPage() {
                                       '#8a94a6',
                                   }}
                                 >
-                                  Student
-                                  response:
+                                  Student response:
                                 </span>{' '}
                                 {
-                                  entry.studentText
+                                  entry.studentText ||
+                                  'No response recorded'
                                 }
                               </div>
                             </div>
@@ -2718,14 +3361,11 @@ export default function TestPage() {
 
   return (
     <div className="test-page-shell">
-      <style>
-        {pageStyles}
-      </style>
+      <style>{pageStyles}</style>
 
       <div className="page-frame">
-        {sessionState ===
-        'setup' ? (
-          <div className="hero-shell p-4 p-xl-5 mb-4 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 gap-lg-4">
+        {sessionState === 'setup' ? (
+          <div className="hero-shell p-4 p-xl-5 mb-4 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
             <div>
               <div
                 className="text-uppercase small mb-2"
@@ -2753,18 +3393,15 @@ export default function TestPage() {
           </div>
         ) : null}
 
-        {sessionState ===
-        'setup'
+        {sessionState === 'setup'
           ? setupView
           : null}
 
-        {sessionState ===
-        'quiz'
+        {sessionState === 'quiz'
           ? quizView
           : null}
 
-        {sessionState ===
-        'viva'
+        {sessionState === 'viva'
           ? vivaView
           : null}
 
