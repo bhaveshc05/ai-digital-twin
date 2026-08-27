@@ -34,17 +34,35 @@ class LLMService:
         if not self.llm:
             # Mock fallback if no LLM
             return [
-                {"topic": "General", "question_text": "What is the main topic of the uploaded document?", "correct_answer": "It discusses the core concepts provided in the text."},
-                {"topic": "Details", "question_text": "Based on the text, what is a key takeaway?", "correct_answer": "The text provides several examples of the concept."}
+                {
+                    "topic": "General",
+                    "question_text": "What is the main topic of the uploaded document?",
+                    "options": ["The core concepts", "Unrelated topics", "Historical context", "None of the above"],
+                    "correct_answer": "The core concepts",
+                    "explanation": "The document primarily discusses the core concepts.",
+                    "source_citation": "Page 1, Paragraph 1"
+                },
+                {
+                    "topic": "Details",
+                    "question_text": "Based on the text, what is a key takeaway?",
+                    "options": ["Concept examples", "Nothing", "A joke", "A recipe"],
+                    "correct_answer": "Concept examples",
+                    "explanation": "The text provides several examples to illustrate the concept.",
+                    "source_citation": "Page 2, Summary"
+                }
             ]
         
         prompt = f'''
         You are a helpful tutor generating a quiz based on the following notes.
         Generate {num_questions} multiple choice questions (with 1 correct answer each).
-        Return the result ONLY as a JSON array of objects, with each object having:
+        You MUST return the result ONLY as a JSON array of objects. Do not include markdown code blocks, just the raw JSON.
+        Each object MUST have the following structure:
         - "topic": a short topic string (e.g., "Math", "History")
-        - "question_text": the question string (including options A, B, C, D)
-        - "correct_answer": the exact correct answer string
+        - "question_text": the question string
+        - "options": an array of 4 string options
+        - "correct_answer": the exact correct answer string (must match one of the options)
+        - "explanation": a short explanation of why the answer is correct
+        - "source_citation": a short citation of where in the text this was found
 
         Notes:
         {context_text}
@@ -54,10 +72,10 @@ class LLMService:
             response = self.llm.invoke(prompt)
             content = response.content
             # Try to parse JSON from the response
-            if '`json' in content:
-                content = content.split('`json')[1].split('`')[0]
-            elif '`' in content:
-                content = content.split('`')[1].split('`')[0]
+            if '```json' in content:
+                content = content.split('```json')[1].split('```')[0]
+            elif '```' in content:
+                content = content.split('```')[1].split('```')[0]
             
             return json.loads(content.strip())
         except Exception as e:
