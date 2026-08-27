@@ -259,10 +259,10 @@ class LLMService:
     ) -> List[Dict]:
 
         # ========================================================
-        # ALWAYS EXACTLY 5
+        # CLAMP num_questions TO SAFE RANGE
         # ========================================================
 
-        num_questions = 5
+        num_questions = max(1, min(num_questions, 15))
 
         # ========================================================
         # VALIDATE CONTEXT
@@ -317,12 +317,12 @@ class LLMService:
         prompt = f"""
 You are an expert teacher and educational quiz generator.
 
-Create EXACTLY 5 high-quality multiple-choice questions
+Create EXACTLY {num_questions} high-quality multiple-choice questions
 using ONLY the study material provided below.
 
 STRICT RULES:
 
-1. Generate EXACTLY 5 questions.
+1. Generate EXACTLY {num_questions} questions.
 2. Every question MUST be directly based on the study material.
 3. Do NOT ask generic questions such as:
    - What is the main topic?
@@ -338,7 +338,7 @@ STRICT RULES:
 9. Do NOT invent facts that are not present in the study material.
 10. Do NOT repeat questions.
 11. Keep questions clear and suitable for students.
-12. Return EXACTLY 5 question objects.
+12. Return EXACTLY {num_questions} question objects.
 13. Return ONLY valid JSON.
 14. Do NOT use Markdown.
 15. Do NOT use ```json.
@@ -526,19 +526,19 @@ STUDY MATERIAL:
             )
 
             # ====================================================
-            # EXACTLY 5 REQUIRED
+            # EXACTLY num_questions REQUIRED
             # ====================================================
 
-            if len(valid_questions) != 5:
+            if len(valid_questions) != num_questions:
 
                 logger.error(
-                    "Expected exactly 5 valid questions, "
+                    f"Expected exactly {num_questions} valid questions, "
                     f"but received {len(valid_questions)}."
                 )
 
                 return []
 
-            return valid_questions[:5]
+            return valid_questions[:num_questions]
 
         # ========================================================
         # EXCEPTION

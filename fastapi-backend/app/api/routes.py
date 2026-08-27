@@ -1066,19 +1066,31 @@ def generate_test(
                 detail="Invalid document_id",
             )
 
-        chunks = (
-            db.query(KnowledgeChunk)
-            .filter(
-                KnowledgeChunk.document_id
-                == document_uuid
+        try:
+            chunks = (
+                db.query(KnowledgeChunk)
+                .filter(
+                    KnowledgeChunk.document_id
+                    == document_uuid
+                )
+                .all()
             )
-            .all()
-        )
 
-        context = " ".join(
-            chunk.text_content
-            for chunk in chunks
-        )
+            context = " ".join(
+                chunk.text_content
+                for chunk in chunks
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Failed to retrieve chunks for document "
+                f"{req.document_id}: {e}",
+                exc_info=True,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to retrieve study material.",
+            )
 
     # ========================================================
     # OPTION 2: Generate using RAG + topic
@@ -1086,17 +1098,29 @@ def generate_test(
 
     elif req.topic:
 
-        chunks = retrieve_relevant_chunks(
-            db=db,
-            student_id=student_uuid,
-            query=req.topic,
-            top_k=10,
-        )
+        try:
+            chunks = retrieve_relevant_chunks(
+                db=db,
+                student_id=student_uuid,
+                query=req.topic,
+                top_k=10,
+            )
 
-        context = " ".join(
-            chunk.text_content
-            for chunk in chunks
-        )
+            context = " ".join(
+                chunk.text_content
+                for chunk in chunks
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Failed to retrieve chunks for topic "
+                f"'{req.topic}': {e}",
+                exc_info=True,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to retrieve study material.",
+            )
 
     # ========================================================
     # OPTION 3: General study material using RAG
@@ -1104,17 +1128,29 @@ def generate_test(
 
     else:
 
-        chunks = retrieve_relevant_chunks(
-            db=db,
-            student_id=student_uuid,
-            query="general study material",
-            top_k=10,
-        )
+        try:
+            chunks = retrieve_relevant_chunks(
+                db=db,
+                student_id=student_uuid,
+                query="general study material",
+                top_k=10,
+            )
 
-        context = " ".join(
-            chunk.text_content
-            for chunk in chunks
-        )
+            context = " ".join(
+                chunk.text_content
+                for chunk in chunks
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Failed to retrieve general study "
+                f"material chunks: {e}",
+                exc_info=True,
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to retrieve study material.",
+            )
 
     # --------------------------------------------------------
     # Check context
@@ -1133,10 +1169,38 @@ def generate_test(
     # Generate questions
     # --------------------------------------------------------
 
-    questions = llm.generate_test_questions(
-        context,
-        req.num_questions,
-    )
+    try:
+        questions = llm.generate_test_questions(
+            context,
+            req.num_questions,
+        )
+
+    except Exception as e:
+        logger.error(
+            f"LLM question generation failed: {e}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Failed to generate quiz questions. "
+                "Please try again."
+            ),
+        )
+
+    # --------------------------------------------------------
+    # Validate LLM output
+    # --------------------------------------------------------
+
+    if not questions:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "The AI service returned no valid "
+                "questions. Try a different topic "
+                "or add more notes."
+            ),
+        )
 
     return {
         "success": True,
