@@ -54,7 +54,7 @@ export default function Library() {
   const fetchDocuments = async () => {
     if (!user?.student_id) return
     try {
-      const response = await fetch(`http://localhost:8000/documents/${user.student_id}`)
+      const response = await fetch(`http://localhost:8000/api/v1/documents/${user.student_id}`)
       if (response.ok) {
         const data = await response.json()
         const fetchedFiles = data.documents.map((doc) => ({
@@ -89,7 +89,7 @@ export default function Library() {
       formData.append('file', file)
       formData.append('student_id', user.student_id)
       
-      const response = await fetch('http://localhost:8000/upload-pdf', {
+      const response = await fetch(`http://localhost:8000/api/v1/documents/${user.student_id}`, {
         method: 'POST',
         body: formData,
       })
