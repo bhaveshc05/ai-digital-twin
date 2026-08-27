@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useContext } from 'react'
+import { AuthContext } from '../context/AuthContext'
 import {
   Badge,
   Button,
@@ -9,10 +10,7 @@ import {
   ProgressBar,
   Row,
   Stack,
-  Alert,
-  Spinner,
 } from 'react-bootstrap'
-import { AuthContext } from '../context/AuthContext'
 import {
   practiceQuestionBank,
   practiceSubjects,
@@ -50,7 +48,7 @@ const pageStyles = `
   border-radius: 22px;
   border: 1px solid #262626;
   background: linear-gradient(180deg, rgba(18, 18, 18, 0.96), rgba(10, 10, 10, 0.96));
-  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
 }
 
 .test-page-shell .mode-card:hover {
@@ -62,6 +60,7 @@ const pageStyles = `
 .test-page-shell .mode-card.active {
   border-color: #38bdf8;
   box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.18), 0 18px 40px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(180deg, rgba(18, 18, 18, 0.98), rgba(10, 10, 10, 0.98));
 }
 
 .test-page-shell .mode-card .mode-icon {
@@ -99,9 +98,11 @@ const pageStyles = `
   background: #334155 !important;
   color: #e2e8f0 !important;
   text-align: left !important;
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease, transform 150ms ease;
 }
 
 .test-page-shell .question-option:hover {
+  transform: translateY(-1px);
   border-color: #3b5165 !important;
 }
 
@@ -128,6 +129,7 @@ const pageStyles = `
   inset: 16px;
   border-radius: 50%;
   border: 1px solid rgba(56, 189, 248, 0.16);
+  pointer-events: none;
 }
 
 .test-page-shell .mic-wrap::after {
@@ -140,6 +142,8 @@ const pageStyles = `
   height: 118px;
   border-radius: 50% !important;
   border: 1px solid #262626 !important;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.36);
+  position: relative;
 }
 
 .test-page-shell .mic-button.idle {
@@ -148,35 +152,26 @@ const pageStyles = `
 }
 
 .test-page-shell .mic-button.listening {
-  background: linear-gradient(
-    180deg,
-    rgba(56, 189, 248, 0.28),
-    rgba(56, 189, 248, 0.14)
-  ) !important;
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.28), rgba(56, 189, 248, 0.14)) !important;
   color: #d9f3ff !important;
   animation: pulseRing 1.8s ease-in-out infinite;
 }
 
 .test-page-shell .mic-button.speaking {
-  background: linear-gradient(
-    180deg,
-    rgba(18, 18, 18, 0.97),
-    rgba(14, 14, 14, 0.97)
-  ) !important;
+  background: linear-gradient(180deg, rgba(18, 18, 18, 0.97), rgba(14, 14, 14, 0.97)) !important;
   color: #38bdf8 !important;
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.24), 0 18px 32px rgba(0, 0, 0, 0.34);
 }
 
 @keyframes pulseRing {
   0% {
-    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.35);
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.35), 0 18px 32px rgba(0, 0, 0, 0.34);
   }
-
   70% {
-    box-shadow: 0 0 0 18px rgba(56, 189, 248, 0);
+    box-shadow: 0 0 0 18px rgba(56, 189, 248, 0), 0 18px 32px rgba(0, 0, 0, 0.34);
   }
-
   100% {
-    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0);
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0), 0 18px 32px rgba(0, 0, 0, 0.34);
   }
 }
 
@@ -221,365 +216,244 @@ const pageStyles = `
   scrollbar-width: thin;
   scrollbar-color: #262626 transparent;
 }
+
+.test-page-shell .custom-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.test-page-shell .custom-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.test-page-shell .custom-scroll::-webkit-scrollbar-thumb {
+  background: #262626;
+  border-radius: 3px;
+}
+
+.test-page-shell .custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: #38bdf8;
+}
+
+
+/* ================= DYNAMIC QUIZ UI ================= */
+.dynamic-quiz { animation: dynamicQuizIn .4s ease both; }
+@keyframes dynamicQuizIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.dynamic-quiz-header { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:28px 32px; margin-bottom:18px; border:1px solid #262626; border-radius:24px; background:linear-gradient(135deg,#121212,#0b0b0b); box-shadow:0 20px 60px rgba(0,0,0,.25); }
+.dynamic-eyebrow { color:#64748b; font-size:10px; font-weight:800; letter-spacing:.16em; margin-bottom:7px; }
+.dynamic-title { margin:0; color:#f8fafc; font-size:clamp(28px,4vw,40px); font-weight:700; }
+.dynamic-title span { color:#64748b; font-weight:500; }
+.dynamic-meta { display:flex; gap:18px; margin-top:9px; color:#8a94a6; font-size:12px; }
+.dynamic-meta span { display:flex; align-items:center; gap:6px; }
+.dynamic-meta i { color:#38bdf8; }
+.dynamic-timer { display:flex; align-items:center; gap:12px; min-width:165px; padding:13px 17px; border:1px solid #292929; border-radius:17px; background:#101010; }
+.dynamic-timer-icon { width:42px; height:42px; display:flex; align-items:center; justify-content:center; border-radius:13px; color:#38bdf8; background:rgba(56,189,248,.1); font-size:18px; }
+.dynamic-timer-label { color:#64748b; font-size:9px; font-weight:800; letter-spacing:.13em; }
+.dynamic-timer-value { color:#f8fafc; font-size:19px; font-weight:700; margin-top:2px; }
+.dynamic-progress-wrap { margin:0 4px 22px; }
+.dynamic-progress-info { display:flex; justify-content:space-between; color:#94a3b8; font-size:13px; font-weight:600; margin-bottom:8px; }
+.dynamic-progress-info strong { color:#38bdf8; }
+.dynamic-progress-track { height:8px; overflow:hidden; border-radius:999px; background:#1e293b; }
+.dynamic-progress-fill { height:100%; border-radius:inherit; background:linear-gradient(90deg,#38bdf8,#818cf8); transition:width .45s cubic-bezier(.4,0,.2,1); box-shadow:0 0 18px rgba(56,189,248,.35); }
+.dynamic-progress-caption { color:#64748b; font-size:11px; margin-top:6px; }
+.dynamic-quiz-layout { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:20px; align-items:start; }
+.dynamic-question-card { padding:clamp(22px,4vw,42px); border-radius:26px; background:linear-gradient(145deg,#111,#0c0c0c); border:1px solid #262626; box-shadow:0 25px 70px rgba(0,0,0,.25); animation:questionIn .35s ease both; }
+@keyframes questionIn { from { opacity:0; transform:translateX(12px); } to { opacity:1; transform:translateX(0); } }
+.dynamic-question-head { display:flex; justify-content:space-between; align-items:center; gap:15px; margin-bottom:28px; }
+.dynamic-tags { display:flex; flex-wrap:wrap; gap:8px; }
+.dynamic-tags span { display:inline-flex; align-items:center; gap:6px; padding:7px 11px; border:1px solid #292929; border-radius:999px; background:#161616; color:#94a3b8; font-size:10px; }
+.dynamic-tags i { color:#38bdf8; }
+.dynamic-q-number { color:#475569; font-size:14px; font-weight:800; }
+.dynamic-question-title-row { display:flex; align-items:flex-start; gap:17px; margin-bottom:31px; }
+.dynamic-question-icon { flex:0 0 auto; width:46px; height:46px; display:flex; align-items:center; justify-content:center; border-radius:15px; color:#38bdf8; background:rgba(56,189,248,.1); border:1px solid rgba(56,189,248,.18); font-size:20px; }
+.dynamic-question-title-row h3 { margin:0; color:#f8fafc; font-size:clamp(20px,3vw,29px); line-height:1.4; font-weight:650; }
+.dynamic-options { display:grid; gap:12px; }
+.dynamic-option { width:100%; display:flex; align-items:center; gap:14px; padding:15px 17px; border-radius:17px; background:#111; border:1px solid #292929; color:#cbd5e1; text-align:left; cursor:pointer; transition:transform .2s ease,border-color .2s ease,background .2s ease,box-shadow .2s ease; }
+.dynamic-option:hover { transform:translateY(-2px); border-color:#3f3f46; background:#151515; box-shadow:0 10px 25px rgba(0,0,0,.18); }
+.dynamic-option.selected { transform:translateY(-2px); background:linear-gradient(135deg,rgba(56,189,248,.12),rgba(129,140,248,.08)); border-color:#38bdf8; color:#f8fafc; box-shadow:0 0 0 1px rgba(56,189,248,.1),0 10px 30px rgba(56,189,248,.08); }
+.dynamic-option-letter { flex:0 0 auto; width:38px; height:38px; display:flex; align-items:center; justify-content:center; border-radius:12px; background:#181818; border:1px solid #303030; color:#64748b; font-weight:800; transition:.2s ease; }
+.dynamic-option.selected .dynamic-option-letter { background:#38bdf8; border-color:#38bdf8; color:#06131a; }
+.dynamic-option-text { flex:1; font-size:15px; line-height:1.5; }
+.dynamic-option-check { color:#475569; font-size:18px; transition:.2s ease; }
+.dynamic-option.selected .dynamic-option-check { color:#38bdf8; transform:scale(1.12); }
+.dynamic-navigation { display:flex; align-items:center; justify-content:space-between; gap:15px; margin-top:30px; padding-top:25px; border-top:1px solid #262626; }
+.dynamic-nav { min-height:48px; padding:0 18px; border-radius:14px !important; display:inline-flex !important; align-items:center; justify-content:center; gap:8px; font-weight:700 !important; transition:transform .2s ease,box-shadow .2s ease !important; }
+.dynamic-nav:hover:not(:disabled) { transform:translateY(-2px); }
+.dynamic-nav.secondary { background:#151515 !important; border:1px solid #303030 !important; color:#cbd5e1 !important; }
+.dynamic-nav.primary { background:linear-gradient(135deg,#38bdf8,#6366f1) !important; border:0 !important; color:white !important; box-shadow:0 8px 25px rgba(56,189,248,.18); }
+.dynamic-nav.submit { background:linear-gradient(135deg,#22c55e,#16a34a) !important; border:0 !important; color:white !important; }
+.dynamic-nav-center { display:flex; flex-direction:column; align-items:center; color:#64748b; font-size:10px; }
+.dynamic-nav-center strong { color:#e2e8f0; font-size:14px; }
+.dynamic-navigator { position:sticky; top:20px; padding:22px; border-radius:24px; background:#101010; border:1px solid #262626; box-shadow:0 20px 50px rgba(0,0,0,.2); }
+.dynamic-navigator-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:18px; }
+.dynamic-navigator-head h4 { margin:4px 0 0; color:#f8fafc; font-size:18px; }
+.dynamic-navigator-head > span { padding:6px 9px; border-radius:10px; background:#181818; color:#38bdf8; font-size:12px; font-weight:800; }
+.dynamic-answer-progress { height:5px; overflow:hidden; margin-bottom:20px; border-radius:999px; background:#1e293b; }
+.dynamic-answer-progress div { height:100%; border-radius:inherit; background:#22c55e; transition:width .3s ease; }
+.dynamic-question-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+.dynamic-question-btn { aspect-ratio:1; border-radius:11px; background:#151515; border:1px solid #292929; color:#64748b; font-size:12px; font-weight:800; cursor:pointer; transition:.2s ease; }
+.dynamic-question-btn:hover { transform:translateY(-2px); border-color:#38bdf8; color:#e2e8f0; }
+.dynamic-question-btn.answered { background:rgba(34,197,94,.12); border-color:rgba(34,197,94,.35); color:#4ade80; }
+.dynamic-question-btn.current { background:#38bdf8; border-color:#38bdf8; color:#06131a; transform:scale(1.05); box-shadow:0 0 15px rgba(56,189,248,.25); }
+.dynamic-question-btn.current.answered { background:#38bdf8; border-color:#38bdf8; color:#06131a; }
+.dynamic-legend { display:flex; flex-direction:column; gap:9px; margin-top:22px; padding-top:18px; border-top:1px solid #262626; color:#64748b; font-size:10px; }
+.dynamic-legend span { display:flex; align-items:center; gap:8px; }
+.dynamic-legend b { width:8px; height:8px; border-radius:50%; display:inline-block; }
+.current-dot { background:#38bdf8; }.answered-dot { background:#22c55e; }.pending-dot { background:#475569; }
+.dynamic-session-tip { display:flex; gap:10px; margin-top:20px; padding:13px; border-radius:15px; background:rgba(56,189,248,.06); border:1px solid #242424; }
+.dynamic-session-tip > div { flex:0 0 auto; width:33px; height:33px; display:flex; align-items:center; justify-content:center; border-radius:10px; background:rgba(56,189,248,.12); color:#38bdf8; }
+.dynamic-session-tip p { margin:0; color:#64748b; font-size:10px; line-height:1.5; }.dynamic-session-tip strong { color:#e2e8f0; }
+@media (max-width:1100px) { .dynamic-quiz-layout { grid-template-columns:1fr; } .dynamic-navigator { position:static; } .dynamic-question-grid { grid-template-columns:repeat(10,1fr); } }
+@media (max-width:768px) { .dynamic-quiz-header { flex-direction:column; align-items:stretch; padding:22px; } .dynamic-timer { width:100%; } .dynamic-question-title-row { flex-direction:column; } .dynamic-navigation { flex-wrap:wrap; } .dynamic-nav { flex:1; } .dynamic-nav-center { order:3; width:100%; } .dynamic-question-grid { grid-template-columns:repeat(8,1fr); } }
+@media (max-width:480px) { .dynamic-meta { flex-direction:column; gap:5px; } .dynamic-question-card { padding:18px; } .dynamic-option { padding:13px; } .dynamic-option-letter { width:34px; height:34px; } .dynamic-option-text { font-size:13px; } .dynamic-question-grid { grid-template-columns:repeat(5,1fr); } }
 `
 
 function formatDuration(totalSeconds) {
-  const safeSeconds = Math.max(0, Math.floor(totalSeconds || 0))
-  const minutes = Math.floor(safeSeconds / 60)
+  const safeSeconds = Math.max(
+    0,
+    Math.floor(totalSeconds)
+  )
+
+  const minutes = Math.floor(
+    safeSeconds / 60
+  )
+
   const seconds = safeSeconds % 60
 
-  return `${String(minutes).padStart(2, '0')}:${String(
-    seconds
-  ).padStart(2, '0')}`
+  return `${String(minutes).padStart(
+    2,
+    '0'
+  )}:${String(seconds).padStart(2, '0')}`
 }
 
-function getElapsedSeconds(startedAt, completedAt) {
-  if (!startedAt || !completedAt) return 0
+function getElapsedSeconds(
+  startedAt,
+  completedAt
+) {
+  if (!startedAt) return 0
 
   return Math.max(
     0,
-    Math.round((completedAt - startedAt) / 1000)
+    Math.round(
+      (completedAt - startedAt) / 1000
+    )
   )
 }
 
-function buildGeneratedQuestions(subjectIds, requestedCount) {
+function buildGeneratedQuestions(
+  subjectIds,
+  requestedCount
+) {
   const selectedSet = new Set(subjectIds)
 
-  const filtered = practiceQuestionBank.filter(
-    (question) =>
-      selectedSet.size === 0 ||
-      selectedSet.has(question.subjectId)
-  )
-
-  return filtered.slice(0, requestedCount)
-}
-
-/*
- * Convert values such as:
- *
- * A
- * a
- * option A
- * Option A
- * 0
- * "0"
- * answer text
- *
- * into a comparable option id.
- */
-function normalizeAnswerId(value, options = []) {
-  if (value === null || value === undefined) {
-    return null
-  }
-
-  const raw = String(value).trim()
-
-  if (!raw) return null
-
-  const lower = raw.toLowerCase()
-
-  const directMatch = options.find(
-    (option) =>
-      String(option.id).toLowerCase() === lower
-  )
-
-  if (directMatch) {
-    return directMatch.id
-  }
-
-  const letterMatch = lower.match(
-    /^(?:option|answer|choice)?\s*[\(\[]?([a-z])[\)\]]?$/
-  )
-
-  if (letterMatch) {
-    const letter = letterMatch[1]
-
-    const letterMatchOption = options.find(
-      (option) =>
-        String(option.id).toLowerCase() === letter
+  const filtered =
+    practiceQuestionBank.filter(
+      (question) =>
+        selectedSet.size === 0 ||
+        selectedSet.has(question.subjectId)
     )
 
-    if (letterMatchOption) {
-      return letterMatchOption.id
-    }
-  }
-
-  const numericValue = Number(raw)
-
-  if (
-    Number.isInteger(numericValue) &&
-    numericValue >= 0 &&
-    numericValue < options.length
-  ) {
-    return options[numericValue].id
-  }
-
-  const textMatch = options.find(
-    (option) =>
-      String(option.text).trim().toLowerCase() === lower
+  return filtered.slice(
+    0,
+    requestedCount
   )
-
-  if (textMatch) {
-    return textMatch.id
-  }
-
-  return raw
 }
 
-/*
- * Handles all common backend formats:
- *
- * data.questions
- * data.test.questions
- * data.data.questions
- * data.items
- * data.test_questions
- * data.results
- * data itself as an array
- */
-function extractQuestionArray(payload) {
-  if (Array.isArray(payload)) {
-    return payload
-  }
-
-  if (!payload || typeof payload !== 'object') {
-    return []
-  }
-
-  const directKeys = [
-    'questions',
-    'test_questions',
-    'items',
-    'results',
-    'data',
-  ]
-
-  for (const key of directKeys) {
-    const value = payload[key]
-
-    if (Array.isArray(value)) {
-      return value
-    }
-  }
-
-  const nestedKeys = [
-    'test',
-    'response',
-    'result',
-    'generated_test',
-    'generatedTest',
-    'data',
-  ]
-
-  for (const key of nestedKeys) {
-    const value = payload[key]
-
-    if (value && typeof value === 'object') {
-      const nestedResult = extractQuestionArray(value)
-
-      if (nestedResult.length) {
-        return nestedResult
-      }
-    }
-  }
-
-  /*
-   * Some APIs return:
-   *
-   * {
-   *   "question_1": {...},
-   *   "question_2": {...}
-   * }
-   */
-  const objectValues = Object.values(payload)
-
-  const objectQuestionValues = objectValues.filter(
-    (value) =>
-      value &&
-      typeof value === 'object' &&
-      !Array.isArray(value) &&
-      (
-        value.question ||
-        value.question_text ||
-        value.text
-      )
-  )
-
-  if (objectQuestionValues.length) {
-    return objectQuestionValues
-  }
-
-  return []
-}
-
-function normalizeGeneratedQuestions(rawPayload) {
-  const rawQuestions = extractQuestionArray(rawPayload)
-
+function normalizeGeneratedQuestions(
+  rawQuestions
+) {
   if (!Array.isArray(rawQuestions)) {
     return []
   }
 
-  return rawQuestions
-    .map((question, index) => {
-      if (!question || typeof question !== 'object') {
-        return null
-      }
-
-      const rawOptions =
-        Array.isArray(question.options)
-          ? question.options
-          : Array.isArray(question.choices)
+  return rawQuestions.map(
+    (question, index) => {
+      const rawOptions = Array.isArray(
+        question?.options
+      )
+        ? question.options
+        : Array.isArray(
+          question?.choices
+        )
           ? question.choices
-          : Array.isArray(question.answers)
-          ? question.answers
-          : Array.isArray(question.answer_options)
-          ? question.answer_options
-          : Array.isArray(question.answerOptions)
-          ? question.answerOptions
-          : []
+          : Array.isArray(
+            question?.answers
+          )
+            ? question.answers
+            : []
 
-      const options = rawOptions
-        .map((option, optionIndex) => {
+      const options = rawOptions.map(
+        (option, optionIndex) => {
           if (typeof option === 'string') {
             return {
-              id: String.fromCharCode(97 + optionIndex),
+              id: String.fromCharCode(
+                97 + optionIndex
+              ),
               text: option,
             }
           }
 
-          if (!option || typeof option !== 'object') {
-            return null
-          }
-
-          const generatedId =
-            option.id ??
-            option.key ??
-            option.option_id ??
-            option.optionId ??
-            String.fromCharCode(97 + optionIndex)
-
-          const generatedText =
-            option.text ??
-            option.value ??
-            option.label ??
-            option.option_text ??
-            option.optionText ??
-            ''
-
           return {
-            id: String(generatedId),
-            text: String(generatedText),
+            id:
+              option?.id ||
+              option?.key ||
+              option?.value ||
+              String.fromCharCode(
+                97 + optionIndex
+              ),
+
+            text:
+              option?.text ||
+              option?.value ||
+              option?.label ||
+              '',
           }
-        })
-        .filter(
-          (option) =>
-            option &&
-            option.text.trim().length > 0
-        )
-
-      const questionText =
-        question.question ??
-        question.question_text ??
-        question.questionText ??
-        question.text ??
-        question.prompt ??
-        ''
-
-      const id =
-        question.id ??
-        question.question_id ??
-        question.questionId ??
-        `generated-${index}`
-
-      const subjectName =
-        question.subjectName ??
-        question.subject_name ??
-        question.subject ??
-        question.domain ??
-        'General'
-
-      const category =
-        question.category ??
-        question.topic ??
-        question.topic_name ??
-        question.topicName ??
-        'General'
-
-      const sourceLabel =
-        question.sourceLabel ??
-        question.source_label ??
-        question.source ??
-        'Generated'
-
-      const rawCorrectAnswer =
-        question.correctOptionId ??
-        question.correct_option_id ??
-        question.correctOption ??
-        question.correct_option ??
-        question.correct_answer ??
-        question.correctAnswer ??
-        question.answer ??
-        question.expected_answer ??
-        question.expectedAnswer ??
-        null
-
-      const correctOptionId = normalizeAnswerId(
-        rawCorrectAnswer,
-        options
+        }
       )
 
       return {
         ...question,
 
-        id: String(id),
+        id:
+          question?.id ||
+          question?.question_id ||
+          `generated-${index}`,
 
-        question: String(
-          questionText || 'Question unavailable'
-        ),
+        question:
+          question?.question ||
+          question?.question_text ||
+          question?.text ||
+          'Question unavailable',
 
         options,
 
-        correctOptionId,
+        correctOptionId:
+          question?.correctOptionId ||
+          question?.correct_option_id ||
+          question?.correct_answer ||
+          question?.answer ||
+          null,
 
-        subjectName: String(
-          subjectName || 'General'
-        ),
+        subjectName:
+          question?.subjectName ||
+          question?.subject ||
+          'General',
 
-        category: String(
-          category || 'General'
-        ),
+        category:
+          question?.category ||
+          question?.topic ||
+          'General',
 
-        sourceLabel: String(
-          sourceLabel || 'Generated'
-        ),
+        sourceLabel:
+          question?.sourceLabel ||
+          question?.source ||
+          'Generated',
 
         sampleStudentResponse:
-          question.sampleStudentResponse ??
-          question.sample_student_response ??
+          question?.sampleStudentResponse ||
+          question?.sample_student_response ||
           '',
       }
-    })
-    .filter(
-      (question) =>
-        question &&
-        question.question &&
-        question.question !== 'Question unavailable'
-    )
-}
-
-/*
- * Safely display the backend response in console.
- * This is very useful if the API changes its shape again.
- */
-function logGeneratedResponse(data) {
-  console.log(
-    'GENERATE TEST RAW RESPONSE:',
-    data
-  )
-
-  console.log(
-    'EXTRACTED QUESTION ARRAY:',
-    extractQuestionArray(data)
+    }
   )
 }
 
@@ -594,64 +468,65 @@ function createQuizResults(
       ? questions
       : []
 
-  const breakdown = safeQuestions.map(
-    (question) => {
+  const breakdown =
+    safeQuestions.map((question) => {
       const selectedOptionId =
-        answers?.[question.id] ?? null
+        answers?.[question.id] ||
+        null
 
       const options =
-        Array.isArray(question.options)
+        Array.isArray(question?.options)
           ? question.options
           : []
 
       const selectedOption =
         options.find(
           (option) =>
-            String(option.id) ===
-            String(selectedOptionId)
+            option.id ===
+            selectedOptionId
         ) || null
 
       const correctOption =
         options.find(
           (option) =>
-            String(option.id) ===
-            String(question.correctOptionId)
+            option.id ===
+            question.correctOptionId
         ) || null
-
-      const isCorrect =
-        selectedOptionId !== null &&
-        question.correctOptionId !== null &&
-        String(selectedOptionId) ===
-          String(question.correctOptionId)
 
       return {
         id: question.id,
 
         subjectName:
-          question.subjectName || 'General',
+          question.subjectName ||
+          'General',
 
         category:
-          question.category || 'General',
+          question.category ||
+          'General',
 
         sourceLabel:
-          question.sourceLabel || 'Generated',
+          question.sourceLabel ||
+          'Generated',
 
         question:
-          question.question || 'Question unavailable',
+          question.question ||
+          'Question unavailable',
 
         selectedOptionText:
-          selectedOption?.text ||
-          'No answer selected',
+          selectedOption
+            ? selectedOption.text
+            : 'No answer selected',
 
         correctOptionText:
-          correctOption?.text ||
-          question.correctOptionId ||
-          'Unavailable',
+          correctOption
+            ? correctOption.text
+            : 'Unavailable',
 
-        isCorrect,
+        isCorrect:
+          selectedOptionId ===
+          question.correctOptionId,
       }
-    }
-  )
+    })
 
   const correctCount =
     breakdown.filter(
@@ -664,13 +539,17 @@ function createQuizResults(
   return {
     accuracy: breakdown.length
       ? Math.round(
-          (correctCount / breakdown.length) * 100
-        )
+        (correctCount /
+          breakdown.length) *
+        100
+      )
       : 0,
 
     correctCount,
     incorrectCount,
-    reviewedCount: breakdown.length,
+
+    reviewedCount:
+      breakdown.length,
 
     timeElapsedSeconds:
       getElapsedSeconds(
@@ -700,23 +579,23 @@ function createVivaResults(
     pairedCount >= 5
       ? 'Strong Conceptual Grasp'
       : pairedCount >= 3
-      ? 'Solid Conceptual Base'
-      : 'Needs More Articulation'
+        ? 'Solid Conceptual Base'
+        : 'Needs More Articulation'
 
   const strengths =
     pairedCount >= 5
       ? [
-          'Uses subject terminology with confidence',
-          'Keeps answers structured and complete',
-          'Connects concepts across prompts',
-        ]
+        'Uses subject terminology with confidence',
+        'Keeps answers structured and complete',
+        'Connects concepts across prompts',
+      ]
       : pairedCount >= 3
-      ? [
+        ? [
           'Shows core recall under prompt changes',
           'Responds clearly with minimal hesitation',
           'Maintains topic alignment during follow-ups',
         ]
-      : [
+        : [
           'Shows baseline familiarity with the topic',
           'Responds to prompts with simple recall',
         ]
@@ -724,21 +603,22 @@ function createVivaResults(
   const areasToImprove =
     pairedCount >= 5
       ? [
-          'Add one more concrete example per answer',
-          'Slow slightly on transitions between points',
-        ]
+        'Add one more concrete example per answer',
+        'Slow slightly on transitions between points',
+      ]
       : [
-          'Expand answers with supporting detail',
-          'Use stronger signposting before concluding',
-          'Practice a fuller explanation rhythm',
-        ]
+        'Expand answers with supporting detail',
+        'Use stronger signposting before concluding',
+        'Practice a fuller explanation rhythm',
+      ]
 
   return {
     performanceLabel,
     strengths,
     areasToImprove,
     reviewedCount: pairedCount,
-    sourceQuestionCount: questionCount,
+    sourceQuestionCount:
+      questionCount,
 
     timeElapsedSeconds:
       getElapsedSeconds(
@@ -831,11 +711,10 @@ function ExpandableRow({
           </div>
 
           <i
-            className={`bi ${
-              expanded
-                ? 'bi-chevron-up'
-                : 'bi-chevron-down'
-            }`}
+            className={`bi ${expanded
+              ? 'bi-chevron-up'
+              : 'bi-chevron-down'
+              }`}
             aria-hidden="true"
             style={{
               color: '#8a94a6',
@@ -919,11 +798,15 @@ function ResultsShell({
       <Row
         className={`g-3 row-cols-1 row-cols-md-2 ${summaryClassName}`}
       >
-        {safeSummaryCards.map((card) => (
-          <Col key={card.title}>
-            <ResultsMetricCard {...card} />
-          </Col>
-        ))}
+        {safeSummaryCards.map(
+          (card) => (
+            <Col key={card.title}>
+              <ResultsMetricCard
+                {...card}
+              />
+            </Col>
+          )
+        )}
       </Row>
 
       {footerNote ? (
@@ -933,11 +816,19 @@ function ResultsShell({
           style={{ padding: 18 }}
         >
           <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
-            <div style={{ color: '#8a94a6' }}>
+            <div
+              style={{
+                color: '#8a94a6',
+              }}
+            >
               {footerNote.left}
             </div>
 
-            <div style={{ color: '#cbd5e1' }}>
+            <div
+              style={{
+                color: '#cbd5e1',
+              }}
+            >
               {footerNote.right}
             </div>
           </div>
@@ -950,7 +841,8 @@ function ResultsShell({
 }
 
 export default function TestPage() {
-  const { user } = useContext(AuthContext)
+  const { user } =
+    useContext(AuthContext)
 
   const [sessionState, setSessionState] =
     useState('setup')
@@ -1030,16 +922,6 @@ export default function TestPage() {
     setDisplayNow,
   ] = useState(() => Date.now())
 
-  const [
-    errorMessage,
-    setErrorMessage,
-  ] = useState('')
-
-  const [
-    initializing,
-    setInitializing,
-  ] = useState(false)
-
   useEffect(() => {
     if (
       sessionState !== 'quiz' &&
@@ -1054,20 +936,29 @@ export default function TestPage() {
       }, 1000)
 
     return () =>
-      window.clearInterval(intervalId)
-  }, [sessionState, sessionStartedAt])
+      window.clearInterval(
+        intervalId
+      )
+  }, [
+    sessionState,
+    sessionStartedAt,
+  ])
 
   const subjectMap = useMemo(() => {
     const safeSubjects =
-      Array.isArray(practiceSubjects)
+      Array.isArray(
+        practiceSubjects
+      )
         ? practiceSubjects
         : []
 
     return new Map(
-      safeSubjects.map((subject) => [
-        subject.id,
-        subject,
-      ])
+      safeSubjects.map(
+        (subject) => [
+          subject.id,
+          subject,
+        ]
+      )
     )
   }, [])
 
@@ -1086,19 +977,21 @@ export default function TestPage() {
     sessionState === 'setup'
       ? setupPreviewQuestions
       : Array.isArray(questions)
-      ? questions
-      : []
+        ? questions
+        : []
 
   const currentQuestion =
-    activeQuestions[currentQuestionIndex] ||
-    null
+    activeQuestions[
+    currentQuestionIndex
+    ] || null
 
   const elapsedSeconds =
     sessionStartedAt
       ? getElapsedSeconds(
-          sessionStartedAt,
-          sessionCompletedAt ?? displayNow
-        )
+        sessionStartedAt,
+        sessionCompletedAt ??
+        displayNow
+      )
       : 0
 
   const elapsedLabel =
@@ -1107,264 +1000,133 @@ export default function TestPage() {
   const selectedSubjectNames =
     selectedSubjects.length
       ? selectedSubjects
-          .map(
-            (subjectId) =>
-              subjectMap.get(subjectId)?.name
-          )
-          .filter(Boolean)
+        .map(
+          (subjectId) =>
+            subjectMap.get(
+              subjectId
+            )?.name
+        )
+        .filter(Boolean)
       : practiceSubjects.map(
-          (subject) => subject.name
-        )
-
-  /*
-   * ============================================================
-   * INITIALIZE SESSION
-   * ============================================================
-   */
-  const initializeSession = async () => {
-    if (initializing) return
-
-    console.log('🔥 INITIALIZE SESSION CLICKED')
-
-    setErrorMessage('')
-    setInitializing(true)
-
-    try {
-      /*
-       * ----------------------------------------------------------
-       * GET LOGGED-IN STUDENT
-       * ----------------------------------------------------------
-       */
-      const storedUser = JSON.parse(
-        localStorage.getItem('user') || 'null'
+        (subject) => subject.name
       )
 
-      console.log(
-        'STORED USER:',
-        storedUser
-      )
-
-      const studentId =
-        storedUser?.student_id ||
-        storedUser?.studentId ||
-        storedUser?.id ||
-        user?.student_id ||
-        user?.studentId ||
-        user?.id
-
-      console.log(
-        'STUDENT ID USED:',
-        studentId
-      )
-
-      if (!studentId) {
-        throw new Error(
-          'No logged-in student found. Please login again.'
-        )
-      }
-
-      /*
-       * ----------------------------------------------------------
-       * TOPIC
-       * ----------------------------------------------------------
-       */
-      const topic =
-        selectedSubjectNames.length
-          ? selectedSubjectNames.join(', ')
-          : 'General'
-
-      console.log(
-        'SELECTED TOPIC:',
-        topic
-      )
-
-      /*
-       * ----------------------------------------------------------
-       * GET STUDENT DOCUMENTS
-       * ----------------------------------------------------------
-       */
-      const documentUrl =
-        `${API_URL}/api/v1/documents/${studentId}`
-
-      console.log(
-        'FETCHING DOCUMENTS FROM:',
-        documentUrl
-      )
-
-      const documentResponse =
-        await fetch(documentUrl)
-
-      if (!documentResponse.ok) {
-        const errorText =
-          await documentResponse.text()
-
-        throw new Error(
-          `Failed to fetch student documents: ${documentResponse.status} ${errorText}`
-        )
-      }
-
-      const documentData =
-        await documentResponse.json()
-
-      console.log(
-        'STUDENT DOCUMENT RESPONSE:',
-        documentData
-      )
-
-      const documentList =
-        Array.isArray(documentData)
-          ? documentData
-          : Array.isArray(
-              documentData?.documents
-            )
-          ? documentData.documents
-          : Array.isArray(
-              documentData?.data
-            )
-          ? documentData.data
-          : []
-
-      console.log(
-        'DOCUMENT LIST:',
-        documentList
-      )
-
-      console.log(
-        'DOCUMENT COUNT:',
-        documentList.length
-      )
-
-      if (!documentList.length) {
-        throw new Error(
-          `No document found for student ${studentId}. Please upload a PDF first.`
-        )
-      }
-
-      /*
-       * ----------------------------------------------------------
-       * SELECT DOCUMENT
-       * ----------------------------------------------------------
-       */
-      const selectedDocument =
-        documentList[0]
-
-      const documentId =
-        selectedDocument?.document_id ||
-        selectedDocument?.documentId ||
-        selectedDocument?.id
-
-      console.log(
-        'SELECTED DOCUMENT:',
-        selectedDocument
-      )
-
-      console.log(
-        'DOCUMENT ID:',
-        documentId
-      )
-
-      if (!documentId) {
-        throw new Error(
-          'Document found, but document_id is missing.'
-        )
-      }
-
-      /*
-       * ----------------------------------------------------------
-       * GENERATE TEST
-       * ----------------------------------------------------------
-       */
-      const generateUrl =
-        `${API_URL}/api/v1/tests/generate`
-
-      const requestBody = {
-        student_id: studentId,
-        document_id: documentId,
-        num_questions: questionCount,
-        topic,
-      }
-
-      console.log(
-        'GENERATING TEST:',
-        generateUrl
-      )
-
-      console.log(
-        'GENERATE TEST REQUEST:',
-        requestBody
-      )
-
-      const response =
-        await fetch(generateUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type':
-              'application/json',
-          },
-          body: JSON.stringify(
-            requestBody
-          ),
-        })
-
-      const responseText =
-        await response.text()
-
-      console.log(
-        'RAW GENERATE RESPONSE:',
-        responseText
-      )
-
-      if (!response.ok) {
-        throw new Error(
-          `Test generation failed: ${response.status} ${responseText}`
-        )
-      }
-
-      let data
-
+  const initializeSession =
+    async () => {
       try {
-        data = JSON.parse(responseText)
-      } catch {
-        throw new Error(
-          'Backend returned an invalid JSON response.'
-        )
-      }
+        const topic =
+          selectedSubjectNames.length
+            ? selectedSubjectNames.join(
+              ', '
+            )
+            : 'General'
 
-      logGeneratedResponse(data)
+        const studentId =
+          user?.student_id ||
+          user?.id ||
+          'unknown'
 
-      /*
-       * ----------------------------------------------------------
-       * NORMALIZE QUESTIONS
-       * ----------------------------------------------------------
-       */
-      let generatedQuestions =
-        normalizeGeneratedQuestions(data)
-
-      console.log(
-        'NORMALIZED QUESTIONS:',
-        generatedQuestions
-      )
-
-      console.log(
-        'NORMALIZED QUESTION COUNT:',
-        generatedQuestions.length
-      )
-
-      /*
-       * ----------------------------------------------------------
-       * FALLBACK TO LOCAL BANK
-       *
-       * Only used if backend really returned no questions.
-       * This prevents the UI from becoming completely unusable
-       * during development.
-       * ----------------------------------------------------------
-       */
-      if (!generatedQuestions.length) {
-        console.warn(
-          'Backend returned no usable questions. Trying local question bank.'
+        const res = await fetch(
+          `${API_URL}/api/v1/tests/generate`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type':
+                'application/json',
+            },
+            body: JSON.stringify({
+              student_id: studentId,
+              num_questions:
+                questionCount,
+              topic,
+            }),
+          }
         )
 
-        generatedQuestions =
+        if (!res.ok) {
+          throw new Error(
+            `Test generation failed: ${res.status}`
+          )
+        }
+
+        const data =
+          await res.json()
+
+        console.log(
+          'GENERATE TEST RESPONSE:',
+          data
+        )
+
+        let generatedQuestions =
+          normalizeGeneratedQuestions(
+            data?.questions
+          )
+
+        if (
+          !generatedQuestions.length
+        ) {
+          generatedQuestions =
+            normalizeGeneratedQuestions(
+              buildGeneratedQuestions(
+                selectedSubjects,
+                questionCount
+              )
+            )
+        }
+
+        if (mode === 'quiz') {
+          generatedQuestions =
+            generatedQuestions.filter(
+              (question) =>
+                Array.isArray(
+                  question.options
+                ) &&
+                question.options.length >
+                0
+            )
+        }
+
+        if (
+          !generatedQuestions.length
+        ) {
+          generatedQuestions =
+            normalizeGeneratedQuestions(
+              buildGeneratedQuestions(
+                selectedSubjects,
+                questionCount
+              )
+            )
+        }
+
+        setQuestions(
+          generatedQuestions
+        )
+
+        setAnswers({})
+        setCurrentQuestionIndex(0)
+        setTranscript([])
+        setMicState('idle')
+        setQuizResults(null)
+        setMasteryResult(null)
+        setVivaResults(null)
+        setExpandedRows({})
+        setSessionStartedAt(
+          Date.now()
+        )
+        setSessionCompletedAt(null)
+
+        setSessionState(
+          mode === 'quiz'
+            ? 'quiz'
+            : 'viva'
+        )
+      } catch (e) {
+        console.error(
+          'Failed to generate test questions',
+          e
+        )
+
+        const generatedQuestions =
           normalizeGeneratedQuestions(
             buildGeneratedQuestions(
               selectedSubjects,
@@ -1372,64 +1134,30 @@ export default function TestPage() {
             )
           )
 
-        console.log(
-          'FALLBACK QUESTIONS:',
+        setQuestions(
           generatedQuestions
         )
-      }
 
-      if (!generatedQuestions.length) {
-        throw new Error(
-          'The backend successfully responded, but no usable questions were returned. Check the FastAPI /tests/generate response format.'
+        setAnswers({})
+        setCurrentQuestionIndex(0)
+        setTranscript([])
+        setMicState('idle')
+        setQuizResults(null)
+        setMasteryResult(null)
+        setVivaResults(null)
+        setExpandedRows({})
+        setSessionStartedAt(
+          Date.now()
+        )
+        setSessionCompletedAt(null)
+
+        setSessionState(
+          mode === 'quiz'
+            ? 'quiz'
+            : 'viva'
         )
       }
-
-      /*
-       * ----------------------------------------------------------
-       * START SESSION
-       * ----------------------------------------------------------
-       */
-      setQuestions(
-        generatedQuestions
-      )
-
-      setCurrentQuestionIndex(0)
-      setAnswers({})
-      setTranscript([])
-      setQuizResults(null)
-      setVivaResults(null)
-      setMasteryResult(null)
-      setExpandedRows({})
-      setSessionCompletedAt(null)
-
-      const startedAt = Date.now()
-
-      setSessionStartedAt(startedAt)
-
-      setSessionState(
-        mode === 'quiz'
-          ? 'quiz'
-          : 'viva'
-      )
-
-      console.log(
-        '✅ TEST SESSION INITIALIZED SUCCESSFULLY'
-      )
-
-    } catch (error) {
-      console.error(
-        '❌ Failed to generate test questions:',
-        error
-      )
-
-      setErrorMessage(
-        error?.message ||
-          'Failed to initialize test session.'
-      )
-    } finally {
-      setInitializing(false)
     }
-  }
 
   const resetToSetup = () => {
     setSessionState('setup')
@@ -1449,22 +1177,24 @@ export default function TestPage() {
     setSubmitting(false)
     setVivaResults(null)
     setExpandedRows({})
-    setErrorMessage('')
-    setInitializing(false)
   }
 
-  const toggleSubject = (subjectId) => {
+  const toggleSubject = (
+    subjectId
+  ) => {
     setSelectedSubjects((prev) =>
       prev.includes(subjectId)
         ? prev.filter(
-            (value) =>
-              value !== subjectId
-          )
+          (value) =>
+            value !== subjectId
+        )
         : [...prev, subjectId]
     )
   }
 
-  const toggleExpandedRow = (rowId) => {
+  const toggleExpandedRow = (
+    rowId
+  ) => {
     setExpandedRows((prev) => ({
       ...prev,
       [rowId]: !prev[rowId],
@@ -1482,152 +1212,132 @@ export default function TestPage() {
   }
 
   /*
-   * ============================================================
-   * QUIZ SUBMISSION
-   * ============================================================
+   * FINAL QUIZ SUBMISSION
+   *
+   * 1. Calculate frontend quiz result
+   * 2. Send each answer to mastery endpoint
+   * 3. Receive BKT mastery response
+   * 4. Store mastery response in React
+   * 5. Show mastery on Results page
    */
   const handleSubmitQuiz = async () => {
-    if (submitting) return
+    if (submitting) return;
 
-    const completedAt =
-      Date.now()
+    const completedAt = Date.now();
 
-    const result =
-      createQuizResults(
-        questions,
-        answers,
-        sessionStartedAt,
-        completedAt
-      )
-
-    setSubmitting(true)
-    setQuizResults(result)
-    setSessionCompletedAt(
+    const result = createQuizResults(
+      questions,
+      answers,
+      sessionStartedAt,
       completedAt
-    )
+    );
 
-    const studentId =
-      user?.student_id ||
-      user?.studentId ||
-      user?.id ||
-      JSON.parse(
-        localStorage.getItem('user') ||
-          'null'
-      )?.student_id ||
-      JSON.parse(
-        localStorage.getItem('user') ||
-          'null'
-      )?.studentId ||
-      JSON.parse(
-        localStorage.getItem('user') ||
-          'null'
-      )?.id
+    setSubmitting(true);
+    setQuizResults(result);
+    setSessionCompletedAt(completedAt);
 
-    if (!studentId) {
+    // Check logged-in student
+    if (!user || (!user.student_id && !user.id)) {
       console.warn(
-        'No logged-in student found. Mastery was not updated.'
-      )
+        "No logged-in student found. Mastery was not updated."
+      );
 
-      setSubmitting(false)
-      setSessionState('results')
-      return
+      setSubmitting(false);
+      setSessionState("results");
+      return;
     }
 
+    const studentId = user.student_id || user.id;
+
     try {
-      const masteryResults = {}
+      /*
+       * Store mastery response for each topic.
+       *
+       * Example:
+       * Python -> Variables
+       * Python -> Loops
+       * DSA -> Algorithms
+       */
+      const masteryResults = {};
 
       for (const item of result.breakdown) {
-        const subject =
-          item.subjectName ||
-          'General'
-
-        const topic =
-          item.category ||
-          'General'
+        const subject = item.subjectName || "General";
+        const topic = item.category || "General";
 
         try {
-          const response =
-            await fetch(
-              `${API_URL}/api/v1/mastery/update`,
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type':
-                    'application/json',
-                },
-                body: JSON.stringify({
-                  student_id:
-                    studentId,
-                  subject,
-                  topic,
-                  is_correct:
-                    Boolean(
-                      item.isCorrect
-                    ),
-                }),
-              }
-            )
+          const response = await fetch(
+            `${API_URL}/api/v1/mastery/update`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                student_id: studentId,
+                subject: subject,
+                topic: topic,
+                is_correct: Boolean(item.isCorrect),
+              }),
+            }
+          );
 
           if (!response.ok) {
-            const errorText =
-              await response.text()
+            const errorText = await response.text();
 
             throw new Error(
               `Mastery update failed: ${response.status} ${errorText}`
-            )
+            );
           }
 
-          const masteryData =
-            await response.json()
+          const masteryData = await response.json();
 
           console.log(
             `MASTERY UPDATED: ${subject} -> ${topic}`,
             masteryData
-          )
+          );
 
-          masteryResults[
-            `${subject}-${topic}`
-          ] = masteryData
+          /*
+           * Keep the latest mastery for this topic.
+           * If multiple questions belong to the same topic,
+           * the last response contains the updated value.
+           */
+          masteryResults[`${subject}-${topic}`] = masteryData;
         } catch (error) {
           console.error(
             `Failed to update mastery for ${subject} -> ${topic}:`,
             error
-          )
+          );
         }
       }
 
-      const allMasteryResults =
-        Object.values(
-          masteryResults
-        )
+      /*
+       * Save all topic mastery results.
+       *
+       * If your UI currently expects only one mastery object,
+       * this will still keep the last updated topic.
+       */
+      const allMasteryResults = Object.values(masteryResults);
 
-      if (allMasteryResults.length) {
-        /*
-         * Store all mastery results.
-         */
-        setMasteryResult(
-          allMasteryResults
-        )
+      if (allMasteryResults.length > 0) {
+        setMasteryResult(allMasteryResults);
 
         console.log(
-          'FINAL MASTERY RESULTS:',
+          "FINAL MASTERY RESULTS:",
           allMasteryResults
-        )
+        );
       } else {
-        console.warn(
-          'No mastery response received.'
-        )
+        console.warn("No mastery response received.");
       }
     } catch (error) {
       console.error(
-        'Mastery processing failed:',
+        "Mastery processing failed:",
         error
-      )
+      );
     } finally {
-      setSubmitting(false)
-      setSessionState('results')
+      setSubmitting(false);
+      setSessionState("results");
     }
-  }
+  };
 
   const completedExchangesCount =
     useMemo(() => {
@@ -1637,11 +1347,6 @@ export default function TestPage() {
       ).length
     }, [transcript])
 
-  /*
-   * ============================================================
-   * VIVA
-   * ============================================================
-   */
   const handleMicClick = () => {
     if (!questions.length) return
 
@@ -1654,19 +1359,18 @@ export default function TestPage() {
 
         const question =
           questions[
-            questionIndex %
-              questions.length
+          questionIndex %
+          questions.length
+          ] ||
+          practiceQuestionBank[
+          questionIndex %
+          practiceQuestionBank.length
           ]
 
         return [
           ...prev,
           {
-            id:
-              typeof crypto !==
-              'undefined' &&
-              crypto.randomUUID
-                ? crypto.randomUUID()
-                : `viva-${Date.now()}`,
+            id: crypto.randomUUID(),
 
             questionPreview:
               question.question,
@@ -1767,11 +1471,6 @@ export default function TestPage() {
     },
   ]
 
-  /*
-   * ============================================================
-   * SETUP VIEW
-   * ============================================================
-   */
   const setupView = (
     <Row className="g-4 align-items-start">
       <Col xxl={8}>
@@ -1780,7 +1479,8 @@ export default function TestPage() {
             <div
               className="text-uppercase small mb-2"
               style={{
-                letterSpacing: '0.16em',
+                letterSpacing:
+                  '0.16em',
                 color: '#8a94a6',
               }}
             >
@@ -1797,27 +1497,6 @@ export default function TestPage() {
               Choose your practice flow
             </h2>
           </div>
-
-          {errorMessage ? (
-            <Alert
-              variant="danger"
-              className="mb-4"
-              style={{
-                background: '#450a0a',
-                border:
-                  '1px solid #991b1b',
-                color: '#fca5a5',
-              }}
-            >
-              <strong>
-                Unable to initialize session
-              </strong>
-
-              <div className="mt-1">
-                {errorMessage}
-              </div>
-            </Alert>
-          ) : null}
 
           <div className="mb-4">
             <div className="d-flex align-items-center justify-content-between mb-3">
@@ -1853,11 +1532,10 @@ export default function TestPage() {
                     >
                       <Button
                         type="button"
-                        className={`mode-card w-100 text-start p-4 ${
-                          isActive
-                            ? 'active'
-                            : ''
-                        }`}
+                        className={`mode-card w-100 text-start p-4 ${isActive
+                          ? 'active'
+                          : ''
+                          }`}
                         onClick={() =>
                           setMode(
                             card.id
@@ -1881,7 +1559,9 @@ export default function TestPage() {
                                   '#f8fafc',
                               }}
                             >
-                              {card.title}
+                              {
+                                card.title
+                              }
                             </div>
 
                             <div
@@ -1942,11 +1622,10 @@ export default function TestPage() {
                       key={subject.id}
                       type="button"
                       size="sm"
-                      className={`subject-chip ${
-                        isActive
-                          ? 'active'
-                          : ''
-                      }`}
+                      className={`subject-chip ${isActive
+                        ? 'active'
+                        : ''
+                        }`}
                       onClick={() =>
                         toggleSubject(
                           subject.id
@@ -2040,6 +1719,7 @@ export default function TestPage() {
                 )
               }
               placeholder="Add any reminders, focus areas, or constraints for this session..."
+              className="border-0"
               style={{
                 borderRadius: 20,
                 background: '#0d0d0d',
@@ -2059,7 +1739,8 @@ export default function TestPage() {
             <div
               className="text-uppercase small mb-1"
               style={{
-                letterSpacing: '0.16em',
+                letterSpacing:
+                  '0.16em',
                 color: '#8a94a6',
               }}
             >
@@ -2199,8 +1880,8 @@ export default function TestPage() {
                 {
                   setupPreviewQuestions.length
                 }{' '}
-                mock questions currently
-                available for this selection.
+                mock questions currently available
+                for this selection.
               </div>
             </Card>
 
@@ -2243,26 +1924,13 @@ export default function TestPage() {
               onClick={
                 initializeSession
               }
-              disabled={
-                !mode || initializing
-              }
+              disabled={!mode}
               style={{
                 borderRadius: 18,
                 minHeight: 56,
               }}
             >
-              {initializing ? (
-                <>
-                  <Spinner
-                    size="sm"
-                    animation="border"
-                    className="me-2"
-                  />
-                  Generating Questions...
-                </>
-              ) : (
-                'Initialize Session'
-              )}
+              Initialize Session
             </Button>
           </Stack>
         </Card>
@@ -2270,493 +1938,200 @@ export default function TestPage() {
     </Row>
   )
 
-  /*
-   * ============================================================
-   * QUIZ VIEW
-   * ============================================================
-   */
+  const answeredCount = Object.keys(answers).length
+  const unansweredCount = Math.max(questions.length - answeredCount, 0)
+  const quizProgress = questions.length
+    ? ((currentQuestionIndex + 1) / questions.length) * 100
+    : 0
+  const answerProgress = questions.length
+    ? (answeredCount / questions.length) * 100
+    : 0
+
+  const goToQuestion = (index) => {
+    if (index >= 0 && index < questions.length) {
+      setCurrentQuestionIndex(index)
+    }
+  }
+
+  const goNextQuestion = () => {
+    setCurrentQuestionIndex((prev) =>
+      Math.min(questions.length - 1, prev + 1)
+    )
+  }
+
+  const goPreviousQuestion = () => {
+    setCurrentQuestionIndex((prev) => Math.max(0, prev - 1))
+  }
+
   const quizView =
     currentQuestion ? (
-      <div className="d-flex flex-column gap-4">
-        <div className="hero-shell p-4 p-xl-5 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+      <div className="dynamic-quiz">
+        <div className="dynamic-quiz-header">
           <div>
-            <div
-              className="text-uppercase small mb-2"
-              style={{
-                letterSpacing:
-                  '0.16em',
-                color: '#8a94a6',
-              }}
-            >
-              Quiz Mode
-            </div>
-
-            <h2
-              className="m-0 fw-semibold"
-              style={{
-                fontSize: 34,
-                color: '#f8fafc',
-              }}
-            >
-              Question{' '}
-              {currentQuestionIndex +
-                1}{' '}
-              of {questions.length}
+            <div className="dynamic-eyebrow">AI DIGITAL TWIN • QUIZ</div>
+            <h2 className="dynamic-title">
+              Question {currentQuestionIndex + 1}
+              <span> / {questions.length}</span>
             </h2>
+            <div className="dynamic-meta">
+              <span><i className="bi bi-check-circle-fill" /> {answeredCount} answered</span>
+              <span><i className="bi bi-circle" /> {unansweredCount} remaining</span>
+            </div>
           </div>
-
-          <div className="d-flex flex-column align-items-lg-end gap-2">
-            <Badge className="summary-badge rounded-pill px-3 py-2">
-              Timer {elapsedLabel}
-            </Badge>
-
-            <div
-              style={{
-                color: '#8a94a6',
-                fontSize: 13,
-              }}
-            >
-              Objective practice with answer review
+          <div className="dynamic-timer">
+            <div className="dynamic-timer-icon"><i className="bi bi-stopwatch-fill" /></div>
+            <div>
+              <div className="dynamic-timer-label">TIME ELAPSED</div>
+              <div className="dynamic-timer-value">{elapsedLabel}</div>
             </div>
           </div>
         </div>
 
-        <Card className="panel-surface p-4 p-xl-5">
-          <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
-            <Badge className="summary-badge rounded-pill px-3 py-2">
-              Source:{' '}
-              {currentQuestion.sourceLabel ||
-                'Generated'}
-            </Badge>
-
-            <Badge className="summary-badge rounded-pill px-3 py-2">
-              {currentQuestion.category ||
-                'General'}
-            </Badge>
+        <div className="dynamic-progress-wrap">
+          <div className="dynamic-progress-info">
+            <span>Quiz Progress</span>
+            <strong>{Math.round(quizProgress)}%</strong>
           </div>
-
-          <ProgressBar
-            now={
-              questions.length
-                ? ((currentQuestionIndex +
-                    1) /
-                    questions.length) *
-                  100
-                : 0
-            }
-            style={{
-              height: 10,
-              backgroundColor:
-                '#1E293B',
-            }}
-            className="mb-4"
-          />
-
-          <h3
-            className="mb-4"
-            style={{
-              fontSize: 28,
-              lineHeight: 1.3,
-              color: '#f8fafc',
-            }}
-          >
-            {currentQuestion.question}
-          </h3>
-
-          <div className="d-grid gap-3">
-            {currentQuestion.options.map(
-              (option) => {
-                const selected =
-                  String(
-                    answers[
-                      currentQuestion.id
-                    ]
-                  ) ===
-                  String(option.id)
-
-                return (
-                  <Button
-                    key={option.id}
-                    type="button"
-                    className={`question-option ${
-                      selected
-                        ? 'active'
-                        : ''
-                    }`}
-                    variant="secondary"
-                    onClick={() =>
-                      handleAnswerSelect(
-                        currentQuestion.id,
-                        option.id
-                      )
-                    }
-                  >
-                    <div className="d-flex align-items-start gap-3">
-                      <div
-                        className="d-inline-flex align-items-center justify-content-center"
-                        style={{
-                          width: 30,
-                          height: 30,
-                          borderRadius: 10,
-                          border:
-                            '1px solid #262626',
-                          background:
-                            selected
-                              ? 'rgba(56, 189, 248, 0.16)'
-                              : '#121212',
-                          color:
-                            selected
-                              ? '#7dd3fc'
-                              : '#8a94a6',
-                          flex:
-                            '0 0 auto',
-                        }}
-                      >
-                        {String(
-                          option.id
-                        ).toUpperCase()}
-                      </div>
-
-                      <div className="flex-grow-1">
-                        {option.text}
-                      </div>
-                    </div>
-                  </Button>
-                )
-              }
-            )}
+          <div className="dynamic-progress-track">
+            <div className="dynamic-progress-fill" style={{ width: `${quizProgress}%` }} />
           </div>
+          <div className="dynamic-progress-caption">
+            {answeredCount} of {questions.length} questions answered
+          </div>
+        </div>
 
-          {!currentQuestion.options.length ? (
-            <Alert
-              variant="warning"
-              className="mt-3"
-            >
-              No answer options were returned
-              for this question.
-            </Alert>
-          ) : null}
-
-          <div
-            className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center justify-content-between gap-3 mt-4 pt-4 border-top"
-            style={{
-              borderColor:
-                '#262626',
-            }}
-          >
-            <Button
-              type="button"
-              variant="outline-secondary"
-              onClick={() =>
-                setCurrentQuestionIndex(
-                  (prev) =>
-                    Math.max(
-                      0,
-                      prev - 1
-                    )
-                )
-              }
-              disabled={
-                currentQuestionIndex ===
-                0
-              }
-              style={{
-                minWidth: 132,
-                minHeight: 48,
-              }}
-            >
-              Previous
-            </Button>
-
-            <div
-              style={{
-                color: '#8a94a6',
-              }}
-            >
-              {elapsedLabel} elapsed
+        <div className="dynamic-quiz-layout">
+          <Card className="dynamic-question-card">
+            <div className="dynamic-question-head">
+              <div className="dynamic-tags">
+                <span><i className="bi bi-stars" /> {currentQuestion.sourceLabel || 'Generated'}</span>
+                <span>{currentQuestion.subjectName || currentQuestion.category || 'General'}</span>
+                <span>{currentQuestion.category || 'General'}</span>
+              </div>
+              <div className="dynamic-q-number">Q{currentQuestionIndex + 1}</div>
             </div>
 
-            <div className="d-flex gap-2">
-              {currentQuestionIndex <
-              questions.length - 1 ? (
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={() =>
-                    setCurrentQuestionIndex(
-                      (prev) =>
-                        Math.min(
-                          questions.length -
-                            1,
-                          prev + 1
-                        )
-                    )
-                  }
-                  style={{
-                    minWidth: 132,
-                    minHeight: 48,
-                  }}
-                >
-                  Next
+            <div className="dynamic-question-title-row">
+              <div className="dynamic-question-icon"><i className="bi bi-question-lg" /></div>
+              <h3>{currentQuestion.question}</h3>
+            </div>
+
+            <div className="dynamic-options">
+              {(Array.isArray(currentQuestion.options) ? currentQuestion.options : []).map((option, index) => {
+                const selected = answers[currentQuestion.id] === option.id
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`dynamic-option ${selected ? 'selected' : ''}`}
+                    onClick={() => handleAnswerSelect(currentQuestion.id, option.id)}
+                  >
+                    <span className="dynamic-option-letter">
+                      {String.fromCharCode(65 + index)}
+                    </span>
+                    <span className="dynamic-option-text">{option.text}</span>
+                    <span className="dynamic-option-check">
+                      <i className={selected ? 'bi bi-check-circle-fill' : 'bi bi-circle'} />
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {(!Array.isArray(currentQuestion.options) || currentQuestion.options.length === 0) && (
+              <div className="alert alert-warning mt-3" role="alert">
+                No answer options were returned for this question.
+              </div>
+            )}
+
+            <div className="dynamic-navigation">
+              <Button
+                type="button"
+                className="dynamic-nav secondary"
+                onClick={goPreviousQuestion}
+                disabled={currentQuestionIndex === 0}
+              >
+                <i className="bi bi-arrow-left" /> Previous
+              </Button>
+
+              <div className="dynamic-nav-center">
+                <strong>{answeredCount}/{questions.length}</strong>
+                <span>answered</span>
+              </div>
+
+              {currentQuestionIndex < questions.length - 1 ? (
+                <Button type="button" className="dynamic-nav primary" onClick={goNextQuestion}>
+                  Next <i className="bi bi-arrow-right" />
                 </Button>
               ) : (
                 <Button
                   type="button"
-                  variant="primary"
-                  onClick={
-                    handleSubmitQuiz
-                  }
-                  disabled={
-                    submitting
-                  }
-                  style={{
-                    minWidth: 132,
-                    minHeight: 48,
-                  }}
+                  className="dynamic-nav submit"
+                  onClick={handleSubmitQuiz}
+                  disabled={submitting}
                 >
-                  {submitting
-                    ? 'Submitting...'
-                    : 'Submit'}
+                  {submitting ? <><span className="spinner-border spinner-border-sm" /> Submitting...</> : <>Submit Quiz <i className="bi bi-check2-circle" /></>}
                 </Button>
               )}
             </div>
-          </div>
-        </Card>
+          </Card>
+
+          <Card className="dynamic-navigator">
+            <div className="dynamic-navigator-head">
+              <div>
+                <div className="dynamic-eyebrow">QUESTIONS</div>
+                <h4>Quick Navigation</h4>
+              </div>
+              <span>{answeredCount}/{questions.length}</span>
+            </div>
+
+            <div className="dynamic-answer-progress">
+              <div style={{ width: `${answerProgress}%` }} />
+            </div>
+
+            <div className="dynamic-question-grid">
+              {questions.map((question, index) => {
+                const isCurrent = index === currentQuestionIndex
+                const isAnswered = answers[question.id] !== undefined
+                return (
+                  <button
+                    key={question.id || index}
+                    type="button"
+                    title={`Question ${index + 1}`}
+                    className={`dynamic-question-btn ${isCurrent ? 'current' : ''} ${isAnswered ? 'answered' : ''}`}
+                    onClick={() => goToQuestion(index)}
+                  >
+                    {isAnswered ? <i className="bi bi-check" /> : index + 1}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="dynamic-legend">
+              <span><b className="current-dot" /> Current</span>
+              <span><b className="answered-dot" /> Answered</span>
+              <span><b className="pending-dot" /> Pending</span>
+            </div>
+
+            <div className="dynamic-session-tip">
+              <div><i className="bi bi-lightning-charge-fill" /></div>
+              <p><strong>Keep going!</strong><br />Complete all questions for the best performance analysis.</p>
+            </div>
+          </Card>
+        </div>
       </div>
     ) : (
       <Card className="panel-surface p-5 text-center">
-        <h4 style={{ color: '#f8fafc' }}>
-          No quiz questions available
-        </h4>
-
-        <p style={{ color: '#8a94a6' }}>
-          Please return to setup and try again.
-        </p>
-
-        <Button onClick={resetToSetup}>
-          Return to Home
-        </Button>
+        <h4 style={{ color: '#f8fafc' }}>No quiz questions available</h4>
+        <p style={{ color: '#8a94a6' }}>Please return to setup and try again.</p>
+        <Button onClick={resetToSetup}>Return to Home</Button>
       </Card>
     )
 
-  /*
-   * ============================================================
-   * VIVA VIEW
-   * ============================================================
-   */
-  const vivaView = (
-    <div className="d-flex flex-column gap-4">
-      <div className="hero-shell p-4 p-xl-5 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
-        <div>
-          <div
-            className="text-uppercase small mb-2"
-            style={{
-              letterSpacing: '0.16em',
-              color: '#8a94a6',
-            }}
-          >
-            Viva Mode
-          </div>
-
-          <h2
-            className="m-0 fw-semibold"
-            style={{
-              fontSize: 34,
-              color: '#f8fafc',
-            }}
-          >
-            Spoken Practice
-          </h2>
-        </div>
-
-        <div className="d-flex flex-column align-items-lg-end gap-2">
-          <Badge className="summary-badge rounded-pill px-3 py-2">
-            Timer {elapsedLabel}
-          </Badge>
-
-          <div
-            style={{
-              color: '#8a94a6',
-              fontSize: 13,
-            }}
-          >
-            {completedExchangesCount} exchanges completed
-          </div>
-        </div>
-      </div>
-
-      <Card className="panel-surface p-4 p-xl-5 text-center">
-        <div className="mb-4">
-          <div
-            className="text-uppercase small mb-2"
-            style={{
-              letterSpacing: '0.16em',
-              color: '#8a94a6',
-            }}
-          >
-            Voice Practice
-          </div>
-
-          <h3
-            style={{
-              color: '#f8fafc',
-            }}
-          >
-            Practice your explanation
-          </h3>
-
-          <p
-            style={{
-              color: '#8a94a6',
-            }}
-          >
-            Click the microphone to move through
-            examiner prompts and record responses.
-          </p>
-        </div>
-
-        <div className="mic-wrap">
-          <Button
-            type="button"
-            className={`mic-button ${micState}`}
-            onClick={handleMicClick}
-          >
-            <i
-              className={`bi ${
-                micState === 'listening'
-                  ? 'bi-mic'
-                  : micState ===
-                    'speaking'
-                  ? 'bi-volume-up'
-                  : 'bi-mic-mute'
-              }`}
-              style={{
-                fontSize: 34,
-              }}
-            />
-          </Button>
-        </div>
-
-        <div
-          className="mt-3 mb-4"
-          style={{
-            color: '#8a94a6',
-          }}
-        >
-          {micState === 'idle'
-            ? 'Click to hear the next prompt'
-            : micState === 'speaking'
-            ? 'Examiner is presenting the prompt'
-            : 'Click again to record the response'}
-        </div>
-
-        <Button
-          type="button"
-          variant="primary"
-          size="lg"
-          onClick={handleEndViva}
-          disabled={
-            completedExchangesCount === 0
-          }
-          style={{
-            minWidth: 180,
-            borderRadius: 16,
-          }}
-        >
-          End Viva
-        </Button>
-      </Card>
-
-      {transcript.length ? (
-        <Card className="panel-surface p-4 p-xl-5">
-          <div className="d-flex align-items-center justify-content-between mb-4">
-            <div>
-              <div
-                className="text-uppercase small mb-2"
-                style={{
-                  letterSpacing:
-                    '0.16em',
-                  color: '#8a94a6',
-                }}
-              >
-                Live Transcript
-              </div>
-
-              <h3
-                className="m-0"
-                style={{
-                  color: '#f8fafc',
-                }}
-              >
-                Current exchanges
-              </h3>
-            </div>
-
-            <Badge className="summary-badge rounded-pill px-3 py-2">
-              {transcript.length}
-            </Badge>
-          </div>
-
-          <div className="d-flex flex-column gap-3">
-            {transcript.map(
-              (entry) => (
-                <div
-                  key={entry.id}
-                  className="review-row p-4"
-                >
-                  <div
-                    className="fw-semibold mb-2"
-                    style={{
-                      color: '#f8fafc',
-                    }}
-                  >
-                    Examiner
-                  </div>
-
-                  <div
-                    className="mb-3"
-                    style={{
-                      color: '#cbd5e1',
-                    }}
-                  >
-                    {entry.examinerText}
-                  </div>
-
-                  <div
-                    className="fw-semibold mb-2"
-                    style={{
-                      color: '#f8fafc',
-                    }}
-                  >
-                    Student
-                  </div>
-
-                  <div
-                    style={{
-                      color: '#8a94a6',
-                    }}
-                  >
-                    {entry.studentText ||
-                      'Waiting for response...'}
-                  </div>
-                </div>
-              )
-            )}
-          </div>
-        </Card>
-      ) : null}
-    </div>
-  )
-
-  /*
-   * ============================================================
-   * RESULTS VIEW
-   * ============================================================
-   */
   const resultsView =
     sessionState === 'results' &&
-    mode === 'quiz' &&
-    quizResults ? (
+      mode === 'quiz' &&
+      quizResults ? (
       <ResultsShell
         title="Quiz Results"
         eyebrow="Practice Complete"
@@ -2772,36 +2147,12 @@ export default function TestPage() {
 
           {
             title: 'Mastery',
-            value:
-              Array.isArray(
-                masteryResult
-              ) &&
-              masteryResult.length
-                ? `${Math.round(
-                    (
-                      masteryResult.reduce(
-                        (
-                          sum,
-                          item
-                        ) =>
-                          sum +
-                          Number(
-                            item.mastery_percentage ??
-                              item.mastery_score ??
-                              0
-                          ),
-                        0
-                      ) /
-                      masteryResult.length
-                    )
-                  )}%`
-                : 'N/A',
+            value: masteryResult
+              ? `${masteryResult.mastery_percentage}%`
+              : 'N/A',
             subtitle:
-              Array.isArray(
-                masteryResult
-              ) &&
-              masteryResult.length
-                ? `${masteryResult.length} topic updates`
+              masteryResult
+                ? `${masteryResult.subject} • ${masteryResult.topic}`
                 : 'BKT-based mastery score',
             accent: true,
           },
@@ -2841,56 +2192,10 @@ export default function TestPage() {
           },
         ]}
         footerNote={{
-          left:
-            'Expanded rows show the selected answer and the expected answer for each item.',
-          right:
-            `${quizResults.reviewedCount} questions reviewed`,
+          left: 'Expanded rows show the selected answer and the expected answer for each item.',
+          right: `${quizResults.reviewedCount} questions reviewed`,
         }}
       >
-        {Array.isArray(
-          masteryResult
-        ) &&
-        masteryResult.length ? (
-          <Card className="panel-surface p-4">
-            <div
-              className="text-uppercase small mb-3"
-              style={{
-                letterSpacing:
-                  '0.16em',
-                color: '#8a94a6',
-              }}
-            >
-              Updated Mastery
-            </div>
-
-            <div className="d-flex flex-wrap gap-2">
-              {masteryResult.map(
-                (item, index) => (
-                  <Badge
-                    key={`${item.subject}-${item.topic}-${index}`}
-                    className="rounded-pill px-3 py-2"
-                  >
-                    {item.subject ||
-                      'General'}{' '}
-                    •{' '}
-                    {item.topic ||
-                      'General'}{' '}
-                    •{' '}
-                    {Math.round(
-                      Number(
-                        item.mastery_percentage ??
-                          item.mastery_score ??
-                          0
-                      )
-                    )}
-                    %
-                  </Badge>
-                )
-              )}
-            </div>
-          </Card>
-        ) : null}
-
         <Card className="panel-surface p-4 p-xl-5">
           <div className="d-flex align-items-center justify-content-between gap-3 mb-4">
             <div>
@@ -2924,119 +2229,126 @@ export default function TestPage() {
           </div>
 
           <div className="d-flex flex-column gap-3">
-            {quizResults.breakdown.map(
-              (item) => {
-                const expanded =
-                  Boolean(
-                    expandedRows[
+            {Array.isArray(
+              quizResults.breakdown
+            ) &&
+              quizResults.breakdown.map(
+                (item) => {
+                  const expanded =
+                    Boolean(
+                      expandedRows[
                       item.id
-                    ]
-                  )
+                      ]
+                    )
 
-                return (
-                  <ExpandableRow
-                    key={item.id}
-                    item={{
-                      ...item,
-                      questionPreview:
-                        item.question,
-                    }}
-                    expanded={
-                      expanded
-                    }
-                    onToggle={() =>
-                      toggleExpandedRow(
-                        item.id
-                      )
-                    }
-                    header={
-                      <>
-                        <Badge className="summary-badge rounded-pill px-3 py-2">
-                          {
-                            item.subjectName
-                          }
-                        </Badge>
+                  return (
+                    <ExpandableRow
+                      key={item.id}
+                      item={{
+                        ...item,
+                        questionPreview:
+                          item.question,
+                      }}
+                      expanded={
+                        expanded
+                      }
+                      onToggle={() =>
+                        toggleExpandedRow(
+                          item.id
+                        )
+                      }
+                      header={
+                        <>
+                          <Badge className="summary-badge rounded-pill px-3 py-2">
+                            {
+                              item.subjectName
+                            }
+                          </Badge>
 
-                        <Badge className="summary-badge rounded-pill px-3 py-2">
-                          {
-                            item.category
-                          }
-                        </Badge>
+                          <Badge className="summary-badge rounded-pill px-3 py-2">
+                            {
+                              item.category
+                            }
+                          </Badge>
 
-                        <Badge
-                          bg={
-                            item.isCorrect
-                              ? 'success'
-                              : 'danger'
-                          }
-                          className="rounded-pill px-3 py-2"
+                          <Badge
+                            bg={
+                              item.isCorrect
+                                ? 'success'
+                                : 'danger'
+                            }
+                            className="rounded-pill px-3 py-2"
+                          >
+                            {item.isCorrect
+                              ? 'Correct'
+                              : 'Incorrect'}
+                          </Badge>
+                        </>
+                      }
+                      details={
+                        <div
+                          style={{
+                            color:
+                              '#e2e8f0',
+                            lineHeight:
+                              1.6,
+                          }}
                         >
-                          {item.isCorrect
-                            ? 'Correct'
-                            : 'Incorrect'}
-                        </Badge>
-                      </>
-                    }
-                    details={
-                      <div
-                        style={{
-                          color:
-                            '#e2e8f0',
-                          lineHeight:
-                            1.6,
-                        }}
-                      >
-                        <div className="mb-2">
-                          <span
-                            style={{
-                              color:
-                                '#8a94a6',
-                            }}
-                          >
-                            Source:
-                          </span>{' '}
-                          {
-                            item.sourceLabel
-                          }
-                        </div>
+                          <div className="mb-2">
+                            <span
+                              style={{
+                                color:
+                                  '#8a94a6',
+                              }}
+                            >
+                              Source:
+                            </span>{' '}
+                            {
+                              item.sourceLabel
+                            }
+                          </div>
 
-                        <div className="mb-2">
-                          <span
-                            style={{
-                              color:
-                                '#8a94a6',
-                            }}
-                          >
-                            Selected answer:
-                          </span>{' '}
-                          {
-                            item.selectedOptionText
-                          }
-                        </div>
+                          <div className="mb-2">
+                            <span
+                              style={{
+                                color:
+                                  '#8a94a6',
+                              }}
+                            >
+                              Selected
+                              answer:
+                            </span>{' '}
+                            {
+                              item.selectedOptionText
+                            }
+                          </div>
 
-                        <div>
-                          <span
-                            style={{
-                              color:
-                                '#8a94a6',
-                            }}
-                          >
-                            Correct answer:
-                          </span>{' '}
-                          {
-                            item.correctOptionText
-                          }
+                          <div>
+                            <span
+                              style={{
+                                color:
+                                  '#8a94a6',
+                              }}
+                            >
+                              Correct
+                              answer:
+                            </span>{' '}
+                            {
+                              item.correctOptionText
+                            }
+                          </div>
                         </div>
-                      </div>
-                    }
-                  />
-                )
-              }
-            )}
+                      }
+                      badge={null}
+                    />
+                  )
+                }
+              )}
           </div>
         </Card>
       </ResultsShell>
-    ) : sessionState === 'results' &&
+    ) : sessionState ===
+      'results' &&
       mode === 'viva' &&
       vivaResults ? (
       <ResultsShell
@@ -3079,10 +2391,8 @@ export default function TestPage() {
           },
         ]}
         footerNote={{
-          left:
-            'Transcript entries expand to show the full examiner prompt and student response.',
-          right:
-            `${vivaResults.reviewedCount} exchanges reviewed`,
+          left: 'Transcript entries expand to show the full examiner prompt and student response.',
+          right: `${vivaResults.reviewedCount} exchanges reviewed`,
         }}
       >
         <Row className="g-3 mb-4">
@@ -3113,13 +2423,16 @@ export default function TestPage() {
                     1.7,
                 }}
               >
-                {vivaResults.strengths.map(
-                  (item) => (
-                    <li key={item}>
-                      {item}
-                    </li>
-                  )
-                )}
+                {Array.isArray(
+                  vivaResults.strengths
+                ) &&
+                  vivaResults.strengths.map(
+                    (item) => (
+                      <li key={item}>
+                        {item}
+                      </li>
+                    )
+                  )}
               </ul>
             </Card>
           </Col>
@@ -3151,13 +2464,16 @@ export default function TestPage() {
                     1.7,
                 }}
               >
-                {vivaResults.areasToImprove.map(
-                  (item) => (
-                    <li key={item}>
-                      {item}
-                    </li>
-                  )
-                )}
+                {Array.isArray(
+                  vivaResults.areasToImprove
+                ) &&
+                  vivaResults.areasToImprove.map(
+                    (item) => (
+                      <li key={item}>
+                        {item}
+                      </li>
+                    )
+                  )}
               </ul>
             </Card>
           </Col>
@@ -3197,13 +2513,16 @@ export default function TestPage() {
           </div>
 
           <div className="d-flex flex-column gap-3">
-            {vivaResults.transcript.length ? (
+            {Array.isArray(
+              vivaResults.transcript
+            ) &&
+              vivaResults.transcript.length ? (
               vivaResults.transcript.map(
                 (entry) => {
                   const expanded =
                     Boolean(
                       expandedRows[
-                        entry.id
+                      entry.id
                       ]
                     )
 
@@ -3220,6 +2539,10 @@ export default function TestPage() {
                             entry.id
                           )
                         }
+                        style={{
+                          outline:
+                            'none',
+                        }}
                       >
                         <div className="d-flex align-items-start justify-content-between gap-3">
                           <div className="flex-grow-1">
@@ -3257,17 +2580,18 @@ export default function TestPage() {
                               }}
                             >
                               Student:{' '}
-                              {entry.studentText ||
-                                'No response recorded'}
+                              {
+                                entry.studentText
+                              }
                             </div>
                           </div>
 
                           <i
-                            className={`bi ${
-                              expanded
-                                ? 'bi-chevron-up'
-                                : 'bi-chevron-down'
-                            }`}
+                            className={`bi ${expanded
+                              ? 'bi-chevron-up'
+                              : 'bi-chevron-down'
+                              }`}
+                            aria-hidden="true"
                             style={{
                               color:
                                 '#8a94a6',
@@ -3313,7 +2637,8 @@ export default function TestPage() {
                                       '#8a94a6',
                                   }}
                                 >
-                                  Examiner prompt:
+                                  Examiner
+                                  prompt:
                                 </span>{' '}
                                 {
                                   entry.examinerText
@@ -3327,11 +2652,11 @@ export default function TestPage() {
                                       '#8a94a6',
                                   }}
                                 >
-                                  Student response:
+                                  Student
+                                  response:
                                 </span>{' '}
                                 {
-                                  entry.studentText ||
-                                  'No response recorded'
+                                  entry.studentText
                                 }
                               </div>
                             </div>
@@ -3361,11 +2686,14 @@ export default function TestPage() {
 
   return (
     <div className="test-page-shell">
-      <style>{pageStyles}</style>
+      <style>
+        {pageStyles}
+      </style>
 
       <div className="page-frame">
-        {sessionState === 'setup' ? (
-          <div className="hero-shell p-4 p-xl-5 mb-4 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+        {sessionState ===
+          'setup' ? (
+          <div className="hero-shell p-4 p-xl-5 mb-4 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 gap-lg-4">
             <div>
               <div
                 className="text-uppercase small mb-2"
@@ -3393,15 +2721,18 @@ export default function TestPage() {
           </div>
         ) : null}
 
-        {sessionState === 'setup'
+        {sessionState ===
+          'setup'
           ? setupView
           : null}
 
-        {sessionState === 'quiz'
+        {sessionState ===
+          'quiz'
           ? quizView
           : null}
 
-        {sessionState === 'viva'
+        {sessionState ===
+          'viva'
           ? vivaView
           : null}
 
