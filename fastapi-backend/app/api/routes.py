@@ -49,12 +49,17 @@ from app.services.mastery_service import (
 from app.services.struggle_data_service import (
     get_struggle_input_data,
 )
+
 from app.services.struggle_service import (
     get_top_struggles,
 )
 
 from app.services.llm_service import (
     get_llm_service,
+)
+
+from app.services.rag_service import (
+    retrieve_relevant_chunks,
 )
 
 
@@ -90,12 +95,10 @@ class StudentCreate(BaseModel):
     guardian_email: Optional[str] = None
 
 
-
 class ChunkCreate(BaseModel):
     student_id: str
     text_content: str
     topic_tags: Optional[List[str]] = None
-
 
 
 class GenerateEmbeddingRequest(BaseModel):
@@ -223,6 +226,7 @@ def update_mastery(
 ):
     try:
         student_id = uuid.UUID(payload.student_id)
+
     except ValueError:
         raise HTTPException(
             status_code=400,
@@ -280,6 +284,7 @@ def create_test(
 ):
     try:
         student_id = uuid.UUID(payload.student_id)
+
     except ValueError:
         raise HTTPException(
             status_code=400,
@@ -314,6 +319,7 @@ def create_test(
     db.flush()
 
     for question in payload.questions:
+
         new_question = TestQuestion(
             test_id=new_test.test_id,
             topic=question.topic,
@@ -362,6 +368,7 @@ def generate_embeddings(
     )
 
     if payload.text:
+
         embedding = service.generate_embedding(
             payload.text
         )
@@ -373,6 +380,7 @@ def generate_embeddings(
         }
 
     if payload.texts:
+
         embeddings = (
             service.generate_embeddings_batch(
                 payload.texts
@@ -411,6 +419,7 @@ def create_chunk(
 ):
     try:
         student_id = uuid.UUID(chunk.student_id)
+
     except ValueError:
         raise HTTPException(
             status_code=400,
@@ -522,8 +531,6 @@ async def upload_pdf_file(
     """
     Upload a PDF and queue it for Celery processing.
 
-    Pipeline:
-
     PDF
       ↓
     Celery
@@ -557,6 +564,7 @@ async def upload_pdf_file(
 
     try:
         student_uuid = uuid.UUID(student_id)
+
     except ValueError:
         raise HTTPException(
             status_code=400,
@@ -605,10 +613,12 @@ async def upload_pdf_file(
     )
 
     try:
+
         with open(
             temp_path,
             "wb",
         ) as temp_file:
+
             temp_file.write(file_bytes)
 
         task = process_pdf_task.delay(
@@ -620,8 +630,10 @@ async def upload_pdf_file(
     except Exception as error:
 
         if os.path.exists(temp_path):
+
             try:
                 os.remove(temp_path)
+
             except OSError:
                 pass
 
@@ -679,6 +691,7 @@ def submit_test(
 ):
     try:
         test_uuid = uuid.UUID(test_id)
+
     except ValueError:
         raise HTTPException(
             status_code=400,
@@ -796,6 +809,7 @@ def get_documents(
 ):
     try:
         student_uuid = uuid.UUID(student_id)
+
     except ValueError:
         raise HTTPException(
             status_code=400,
@@ -839,6 +853,7 @@ def get_mastery(
 ):
     try:
         student_uuid = uuid.UUID(student_id)
+
     except ValueError:
         raise HTTPException(
             status_code=400,
@@ -893,17 +908,11 @@ def get_student_struggles(
     Calculate and return the Top 5 topics where
     the student is most likely to lose marks.
 
-    Formula:
-
-        Struggle Score =
-        (1 - Mastery)
-        × Syllabus Weight
-        × Time Decay
+    Struggle Score =
+    (1 - Mastery)
+    × Syllabus Weight
+    × Time Decay
     """
-
-    # --------------------------------------------------------
-    # Validate student UUID
-    # --------------------------------------------------------
 
     try:
         student_uuid = uuid.UUID(student_id)
@@ -913,10 +922,6 @@ def get_student_struggles(
             status_code=400,
             detail="Invalid student_id",
         )
-
-    # --------------------------------------------------------
-    # Check student exists
-    # --------------------------------------------------------
 
     student = (
         db.query(Student)
@@ -932,19 +937,11 @@ def get_student_struggles(
             detail="Student not found",
         )
 
-    # --------------------------------------------------------
-    # Calculate Top 5 struggles
-    # --------------------------------------------------------
-
     struggles = get_top_struggles(
         db=db,
         student_id=student_uuid,
         top_n=5,
     )
-
-    # --------------------------------------------------------
-    # Return response
-    # --------------------------------------------------------
 
     return {
         "success": True,
@@ -966,6 +963,7 @@ def get_tests(
 ):
     try:
         student_uuid = uuid.UUID(student_id)
+
     except ValueError:
         raise HTTPException(
             status_code=400,
@@ -1002,13 +1000,22 @@ def generate_test(
     req: GenerateTestRequest,
     db: Session = Depends(get_db),
 ):
+    # --------------------------------------------------------
+    # Validate student UUID
+    # --------------------------------------------------------
+
     try:
         student_uuid = uuid.UUID(req.student_id)
+
     except ValueError:
         raise HTTPException(
             status_code=400,
             detail="Invalid student_id",
         )
+
+    # --------------------------------------------------------
+    # Check student exists
+    # --------------------------------------------------------
 
     student = (
         db.query(Student)
@@ -1024,15 +1031,27 @@ def generate_test(
             detail="Student not found",
         )
 
+    # --------------------------------------------------------
+    # Validate number of questions
+    # --------------------------------------------------------
+
     if req.num_questions < 1:
         raise HTTPException(
             status_code=400,
             detail="num_questions must be at least 1",
         )
 
+    # --------------------------------------------------------
+    # LLM service
+    # --------------------------------------------------------
+
     llm = get_llm_service()
 
     context = ""
+
+    # ========================================================
+    # OPTION 1: Generate from document
+    # ========================================================
 
     if req.document_id:
 
@@ -1061,39 +1080,45 @@ def generate_test(
             for chunk in chunks
         )
 
+    # ========================================================
+    # OPTION 2: Generate using RAG + topic
+    # ========================================================
+
     elif req.topic:
 
-        chunks = (
-            db.query(KnowledgeChunk)
-            .filter(
-                KnowledgeChunk.student_id
-                == student_uuid
-            )
-            .limit(10)
-            .all()
+        chunks = retrieve_relevant_chunks(
+            db=db,
+            student_id=student_uuid,
+            query=req.topic,
+            top_k=10,
         )
 
         context = " ".join(
             chunk.text_content
             for chunk in chunks
         )
+
+    # ========================================================
+    # OPTION 3: General study material using RAG
+    # ========================================================
 
     else:
 
-        chunks = (
-            db.query(KnowledgeChunk)
-            .filter(
-                KnowledgeChunk.student_id
-                == student_uuid
-            )
-            .limit(10)
-            .all()
+        chunks = retrieve_relevant_chunks(
+            db=db,
+            student_id=student_uuid,
+            query="general study material",
+            top_k=10,
         )
 
         context = " ".join(
             chunk.text_content
             for chunk in chunks
         )
+
+    # --------------------------------------------------------
+    # Check context
+    # --------------------------------------------------------
 
     if not context.strip():
         raise HTTPException(
@@ -1104,12 +1129,20 @@ def generate_test(
             ),
         )
 
+    # --------------------------------------------------------
+    # Generate questions
+    # --------------------------------------------------------
+
     questions = llm.generate_test_questions(
         context,
         req.num_questions,
     )
 
     return {
+        "success": True,
+        "student_id": str(student_uuid),
+        "topic": req.topic,
+        "num_questions": req.num_questions,
         "questions": questions,
     }
 
@@ -1128,6 +1161,7 @@ def get_mastery_history(
 ):
     try:
         student_uuid = uuid.UUID(student_id)
+
     except ValueError:
         raise HTTPException(
             status_code=400,
@@ -1143,11 +1177,13 @@ def get_mastery_history(
     )
 
     if subject:
+
         query = query.filter(
             MasterySnapshot.subject == subject
         )
 
     if topic:
+
         query = query.filter(
             MasterySnapshot.topic == topic
         )
@@ -1191,15 +1227,19 @@ def get_mastery_history(
 
 
 # ============================================================
-# STRUGGLE DATA (feeds Struggle Topic Predictor)
+# STRUGGLE DATA
 # ============================================================
+
 
 @router.get("/struggle-data/{student_id}")
 def get_struggle_data(
     student_id: str,
     db: Session = Depends(get_db),
 ):
-    data = get_struggle_input_data(db, student_id)
+    data = get_struggle_input_data(
+        db,
+        student_id,
+    )
 
     return {
         "student_id": student_id,
@@ -1213,5 +1253,5 @@ def get_struggle_data(
                 "days_since_practice": row["days_since_practice"],
             }
             for row in data
-        ]
+        ],
     }
