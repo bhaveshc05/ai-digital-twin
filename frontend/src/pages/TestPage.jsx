@@ -14,6 +14,7 @@ import {
 import {
   practiceQuestionBank,
 } from '../data/mockData.js'
+import VivaRoom from './VivaRoom'
 
 const API_URL = 'http://localhost:8000'
 
@@ -2283,50 +2284,20 @@ export default function TestPage() {
             : 'Listening — tap again when you\'re done answering'}
         </div>
 
-        <div style={{ color: '#8a94a6' }}>
-          {transcript.length
-            ? transcript[transcript.length - 1]?.examinerText
-            : 'No question asked yet.'}
+            <div className="dynamic-session-tip">
+              <div><i className="bi bi-lightning-charge-fill" /></div>
+              <p><strong>Keep going!</strong><br />Complete all questions for the best performance analysis.</p>
+            </div>
+          </Card>
         </div>
-
-        <div className="d-flex justify-content-center mt-4">
-          <Button
-            type="button"
-            variant="outline-secondary"
-            onClick={handleEndViva}
-            disabled={!completedExchangesCount}
-            style={{ minWidth: 180, minHeight: 48 }}
-          >
-            End Viva &amp; Review
-          </Button>
-        </div>
+      </div>
+    ) : (
+      <Card className="panel-surface p-5 text-center">
+        <h4 style={{ color: '#f8fafc' }}>No quiz questions available</h4>
+        <p style={{ color: '#8a94a6' }}>Please return to setup and try again.</p>
+        <Button onClick={resetToSetup}>Return to Home</Button>
       </Card>
-
-      {transcript.length ? (
-        <Card className="panel-surface p-4 p-xl-5">
-          <div
-            className="text-uppercase small mb-3"
-            style={{ letterSpacing: '0.14em', color: '#8a94a6' }}
-          >
-            Transcript so far
-          </div>
-
-          <div className="d-flex flex-column gap-3 custom-scroll" style={{ maxHeight: 320, overflowY: 'auto' }}>
-            {transcript.map((entry) => (
-              <div key={entry.id} className="review-row p-3">
-                <div className="fw-semibold mb-1" style={{ color: '#f8fafc' }}>
-                  Examiner: {entry.examinerText}
-                </div>
-                <div style={{ color: '#8a94a6' }}>
-                  Student: {entry.studentText || 'Awaiting response...'}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      ) : null}
-    </div>
-  )
+    )
 
   const resultsView =
     sessionState === 'results' &&
