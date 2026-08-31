@@ -15,6 +15,7 @@ import {
   practiceQuestionBank,
   practiceSubjects,
 } from '../data/mockData.js'
+import VivaRoom from './VivaRoom'
 
 const API_URL = 'http://localhost:8000'
 
@@ -2127,6 +2128,16 @@ export default function TestPage() {
         <Button onClick={resetToSetup}>Return to Home</Button>
       </Card>
     )
+
+  const vivaView = (
+    <VivaRoom
+      initialSubject={selectedSubjectNames[0] || 'Physics'}
+      initialTopic="Core Concepts & Spoken Practice"
+      initialTotalQuestions={questionCount > 10 ? 5 : questionCount}
+      autoStart={true}
+      onExit={resetToSetup}
+    />
+  )
 
   const resultsView =
     sessionState === 'results' &&
