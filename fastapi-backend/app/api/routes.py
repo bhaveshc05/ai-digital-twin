@@ -4,6 +4,9 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional
 
+import json
+import random
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -11,6 +14,8 @@ from fastapi import (
     File,
     UploadFile,
     Form,
+    WebSocket,
+    WebSocketDisconnect,
 )
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -1255,3 +1260,400 @@ def get_struggle_data(
             for row in data
         ],
     }
+
+
+# ============================================================
+# VIVA ROOM WEBSOCKET ENDPOINT
+# ============================================================
+
+VIVA_QUESTION_BANKS = {
+    "Physics": [
+        {
+            "id": 1,
+            "question": "Can you state the First Law of Thermodynamics and explain what physical quantity it conserves?",
+            "expected_keywords": ["energy", "conservation", "heat", "work", "internal energy"],
+            "sample_answer": "The First Law of Thermodynamics states that energy cannot be created or destroyed, only transformed from one form to another. It expresses conservation of energy where change in internal energy equals heat added minus work done."
+        },
+        {
+            "id": 2,
+            "question": "What is the key difference between isothermal and adiabatic thermodynamic processes?",
+            "expected_keywords": ["temperature", "constant", "heat transfer", "zero", "insulated"],
+            "sample_answer": "In an isothermal process, temperature remains constant (delta T = 0). In an adiabatic process, no heat is exchanged between system and surroundings (Q = 0)."
+        },
+        {
+            "id": 3,
+            "question": "Explain Newton's Second Law of Motion and how force relates to momentum.",
+            "expected_keywords": ["force", "mass", "acceleration", "rate of change", "momentum"],
+            "sample_answer": "Newton's Second Law states that force is equal to the rate of change of momentum with respect to time (F = dp/dt = m*a)."
+        },
+        {
+            "id": 4,
+            "question": "What is the photoelectric effect and how did Einstein explain it using quanta of light?",
+            "expected_keywords": ["photon", "frequency", "work function", "electron", "quantum"],
+            "sample_answer": "The photoelectric effect is the emission of electrons when light hits a material. Einstein proposed light comes in discrete packets called photons (E = h*f)."
+        },
+        {
+            "id": 5,
+            "question": "Define electromagnetic induction and Faraday's Law.",
+            "expected_keywords": ["magnetic flux", "induced EMF", "conductor", "change", "coil"],
+            "sample_answer": "Faraday's Law states that an induced electromotive force (EMF) in any closed circuit is equal to the negative rate of change of magnetic flux through the circuit."
+        }
+    ],
+    "Chemistry": [
+        {
+            "id": 1,
+            "question": "What is Le Chatelier's Principle and how does it predict dynamic chemical equilibrium shifts?",
+            "expected_keywords": ["equilibrium", "shift", "stress", "concentration", "temperature", "pressure"],
+            "sample_answer": "Le Chatelier's principle states that if a system at equilibrium is disturbed by a change in temperature, pressure, or concentration, the system shifts to counteract the disturbance."
+        },
+        {
+            "id": 2,
+            "question": "Explain the difference between ionic and covalent chemical bonding.",
+            "expected_keywords": ["sharing", "transfer", "electrons", "ions", "electronegativity"],
+            "sample_answer": "Ionic bonding involves the transfer of valence electrons between atoms forming ions, whereas covalent bonding involves the mutual sharing of electron pairs."
+        },
+        {
+            "id": 3,
+            "question": "What defines an acid and a base according to the Bronsted-Lowry theory?",
+            "expected_keywords": ["proton", "donor", "acceptor", "H+", "hydrogen ion"],
+            "sample_answer": "A Bronsted-Lowry acid is a proton (H+) donor, and a Bronsted-Lowry base is a proton acceptor."
+        },
+        {
+            "id": 4,
+            "question": "What is hybridization in atomic orbitals and why is sp3 hybridization important for carbon?",
+            "expected_keywords": ["orbital", "mixing", "tetrahedral", "methane", "valence"],
+            "sample_answer": "Hybridization is the mixing of atomic orbitals into new hybrid orbitals. Carbon undergoes sp3 hybridization to form four equivalent bonds in a tetrahedral structure."
+        },
+        {
+            "id": 5,
+            "question": "Describe the main factors that influence the rate of a chemical reaction.",
+            "expected_keywords": ["temperature", "concentration", "catalyst", "surface area", "activation energy"],
+            "sample_answer": "Reaction rates are influenced by reactant concentration, temperature, surface area, presence of catalysts, and activation energy."
+        }
+    ],
+    "Mathematics": [
+        {
+            "id": 1,
+            "question": "What is the geometric interpretation of the derivative of a single-variable function?",
+            "expected_keywords": ["slope", "tangent line", "rate of change", "instantaneous", "curve"],
+            "sample_answer": "The derivative represents the slope of the tangent line to the function graph at a given point, representing the instantaneous rate of change."
+        },
+        {
+            "id": 2,
+            "question": "Explain the Fundamental Theorem of Calculus and how integration relates to differentiation.",
+            "expected_keywords": ["antiderivative", "definite integral", "area under curve", "inverse"],
+            "sample_answer": "The Fundamental Theorem of Calculus links differentiation and integration, showing that integration is the reverse process of differentiation."
+        },
+        {
+            "id": 3,
+            "question": "What is an eigenvalue and an eigenvector of a matrix?",
+            "expected_keywords": ["linear transformation", "scalar", "scale", "direction", "matrix"],
+            "sample_answer": "An eigenvector is a non-zero vector whose direction does not change when a linear transformation is applied, and the eigenvalue is the scalar multiplier."
+        },
+        {
+            "id": 4,
+            "question": "Define the mathematical definition of a limit of a function.",
+            "expected_keywords": ["approaches", "delta", "epsilon", "value", "continuity"],
+            "sample_answer": "A limit is the value that a function approaches as the input approaches some given value."
+        },
+        {
+            "id": 5,
+            "question": "What is the Law of Total Probability and Bayes' Theorem?",
+            "expected_keywords": ["conditional probability", "prior", "posterior", "event", "partition"],
+            "sample_answer": "Bayes' Theorem calculates the probability of an event based on prior knowledge of conditions related to the event."
+        }
+    ],
+    "Computer Science": [
+        {
+            "id": 1,
+            "question": "What is the difference between a process and a thread in operating systems?",
+            "expected_keywords": ["memory space", "lightweight", "execution", "shared memory", "concurrency"],
+            "sample_answer": "A process is an independent program execution environment with its own address space, whereas a thread is a lightweight unit of execution sharing memory within a process."
+        },
+        {
+            "id": 2,
+            "question": "Explain Time Complexity and Big O Notation using Binary Search as an example.",
+            "expected_keywords": ["logarithmic", "O(log n)", "upper bound", "divide and conquer"],
+            "sample_answer": "Big O notation describes the upper bound of algorithm runtime relative to input size. Binary Search has O(log n) time complexity."
+        },
+        {
+            "id": 3,
+            "question": "What are ACID properties in database management systems?",
+            "expected_keywords": ["atomicity", "consistency", "isolation", "durability", "transaction"],
+            "sample_answer": "ACID stands for Atomicity, Consistency, Isolation, and Durability, ensuring reliable database transaction processing."
+        },
+        {
+            "id": 4,
+            "question": "Explain Object-Oriented Programming principles: Encapsulation, Abstraction, Inheritance, and Polymorphism.",
+            "expected_keywords": ["encapsulation", "abstraction", "inheritance", "polymorphism", "class"],
+            "sample_answer": "OOP relies on Encapsulation (data hiding), Abstraction (simplifying complex reality), Inheritance (code reuse), and Polymorphism (many forms)."
+        },
+        {
+            "id": 5,
+            "question": "How does HTTPS establish a secure connection using TLS/SSL handshake?",
+            "expected_keywords": ["certificate", "encryption", "symmetric", "asymmetric", "handshake", "public key"],
+            "sample_answer": "HTTPS uses TLS handshake where public-key cryptography authenticates the server and establishes a shared symmetric key for encrypted communication."
+        }
+    ],
+    "Biology": [
+        {
+            "id": 1,
+            "question": "What is ATP and why is it considered the energy currency of the cell?",
+            "expected_keywords": ["adenosine triphosphate", "phosphate bond", "cellular respiration", "mitochondria", "energy"],
+            "sample_answer": "ATP (Adenosine Triphosphate) stores energy in high-energy phosphate bonds released during cellular processes."
+        },
+        {
+            "id": 2,
+            "question": "Describe the central dogma of molecular biology.",
+            "expected_keywords": ["dna", "rna", "protein", "transcription", "translation"],
+            "sample_answer": "The central dogma describes the flow of genetic information: DNA is transcribed into RNA, which is translated into protein."
+        },
+        {
+            "id": 3,
+            "question": "Explain the difference between mitosis and meiosis cell division.",
+            "expected_keywords": ["diploid", "haploid", "daughter cells", "gametes", "somatic", "chromosome count"],
+            "sample_answer": "Mitosis produces 2 genetically identical diploid somatic cells, whereas meiosis produces 4 genetically unique haploid gametes."
+        },
+        {
+            "id": 4,
+            "question": "How does photosynthesis convert light energy into chemical energy during light and dark reactions?",
+            "expected_keywords": ["chloroplast", "chlorophyll", "calvin cycle", "light reaction", "glucose"],
+            "sample_answer": "Photosynthesis captures light energy in thylakoid membranes to generate ATP/NADPH, which powers the Calvin Cycle in the stroma to produce glucose."
+        },
+        {
+            "id": 5,
+            "question": "What is natural selection and how does variation contribute to evolution?",
+            "expected_keywords": ["adaptation", "survival", "fitness", "mutation", "gene frequency"],
+            "sample_answer": "Natural selection acts on inheritable variations, favoring traits that improve survival and reproduction in an environment over generations."
+        }
+    ]
+}
+
+def evaluate_viva_student_answer(question_obj, student_answer):
+    if not student_answer or len(student_answer.strip()) < 3:
+        return {
+            "score": 2,
+            "feedback": "Response was too brief or incomplete. Please elaborate further on key concepts.",
+            "strengths": ["Attempted to answer"],
+            "weak_concepts": question_obj.get("expected_keywords", [])[:3]
+        }
+    
+    text_lower = student_answer.lower()
+    keywords = question_obj.get("expected_keywords", [])
+    matched_keywords = [kw for kw in keywords if kw.lower() in text_lower]
+    
+    match_ratio = len(matched_keywords) / max(len(keywords), 1)
+    word_count = len(student_answer.split())
+    
+    if match_ratio >= 0.7:
+        score = random.randint(9, 10)
+        feedback = "Outstanding response! You demonstrated thorough conceptual understanding and used precise terminology."
+    elif match_ratio >= 0.4:
+        score = random.randint(7, 8)
+        feedback = "Good answer! You captured the main ideas well. Adding a bit more detail on key mechanisms would make it even stronger."
+    elif match_ratio >= 0.2 or word_count > 12:
+        score = random.randint(5, 6)
+        feedback = "Partial understanding shown. You touched on relevant ideas, but missed some key core concepts."
+    else:
+        score = random.randint(3, 4)
+        feedback = "Needs improvement. The response missed several critical terms and foundational concepts for this topic."
+        
+    strengths = []
+    if matched_keywords:
+        strengths.append(f"Correctly mentioned {', '.join(matched_keywords[:3])}")
+    if word_count > 15:
+        strengths.append("Clear articulation and structure")
+    if not strengths:
+        strengths.append("Attempted explanation")
+        
+    unmatched_keywords = [kw for kw in keywords if kw.lower() not in text_lower]
+    weak_concepts = unmatched_keywords[:3] if unmatched_keywords else ["Minor depth details"]
+    
+    return {
+        "score": score,
+        "feedback": feedback,
+        "strengths": strengths,
+        "weak_concepts": weak_concepts
+    }
+
+@router.websocket("/ws/viva")
+async def viva_websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    
+    session = {
+        "active": False,
+        "subject": "Physics",
+        "topic": "General Physics",
+        "total_questions": 5,
+        "current_index": 0,
+        "questions": [],
+        "history": [],
+        "scores": []
+    }
+    
+    try:
+        while True:
+            raw_msg = await websocket.receive_text()
+            data = json.loads(raw_msg)
+            event_type = data.get("event")
+            
+            if event_type == "start_viva":
+                subject = data.get("subject", "Physics")
+                if subject not in VIVA_QUESTION_BANKS:
+                    subject = "Physics"
+                total_q = min(max(int(data.get("total_questions", 5)), 1), 10)
+                
+                bank = VIVA_QUESTION_BANKS[subject]
+                selected_q = bank[:total_q]
+                
+                session["active"] = True
+                session["subject"] = subject
+                session["topic"] = data.get("topic", f"{subject} Core Concepts")
+                session["total_questions"] = len(selected_q)
+                session["current_index"] = 0
+                session["questions"] = selected_q
+                session["history"] = []
+                session["scores"] = []
+                
+                first_q = selected_q[0]
+                
+                await websocket.send_json({
+                    "event": "viva_started",
+                    "subject": subject,
+                    "topic": session["topic"],
+                    "total_questions": session["total_questions"],
+                    "current_question_index": 1,
+                    "question": first_q["question"],
+                    "question_id": first_q["id"]
+                })
+                
+            elif event_type == "submit_answer":
+                if not session["active"]:
+                    await websocket.send_json({"event": "error", "message": "Viva session has not started."})
+                    continue
+                
+                student_text = data.get("text", "").strip()
+                curr_idx = session["current_index"]
+                
+                if curr_idx < len(session["questions"]):
+                    q_obj = session["questions"][curr_idx]
+                    eval_result = evaluate_viva_student_answer(q_obj, student_text)
+                    
+                    history_entry = {
+                        "question_number": curr_idx + 1,
+                        "question": q_obj["question"],
+                        "student_answer": student_text or "(No spoken answer provided)",
+                        "score": eval_result["score"],
+                        "feedback": eval_result["feedback"],
+                        "strengths": eval_result["strengths"],
+                        "weak_concepts": eval_result["weak_concepts"]
+                    }
+                    
+                    session["history"].append(history_entry)
+                    session["scores"].append(eval_result["score"])
+                    
+                    await websocket.send_json({
+                        "event": "eval_feedback",
+                        "question_number": curr_idx + 1,
+                        "total_questions": session["total_questions"],
+                        "score": eval_result["score"],
+                        "feedback": eval_result["feedback"],
+                        "strengths": eval_result["strengths"],
+                        "weak_concepts": eval_result["weak_concepts"],
+                        "sample_answer": q_obj.get("sample_answer")
+                    })
+                    
+            elif event_type == "next_question":
+                if not session["active"]:
+                    await websocket.send_json({"event": "error", "message": "Viva session has not started."})
+                    continue
+                    
+                session["current_index"] += 1
+                curr_idx = session["current_index"]
+                
+                if curr_idx < session["total_questions"]:
+                    next_q = session["questions"][curr_idx]
+                    await websocket.send_json({
+                        "event": "next_question",
+                        "current_question_index": curr_idx + 1,
+                        "total_questions": session["total_questions"],
+                        "question": next_q["question"],
+                        "question_id": next_q["id"]
+                    })
+                else:
+                    avg_score = sum(session["scores"]) / len(session["scores"]) if session["scores"] else 0
+                    percentage = round((avg_score / 10.0) * 100, 1)
+                    
+                    all_weak = []
+                    for h in session["history"]:
+                        all_weak.extend(h.get("weak_concepts", []))
+                    unique_weak = list(set(all_weak))[:5]
+                    
+                    all_strengths = []
+                    for h in session["history"]:
+                        all_strengths.extend(h.get("strengths", []))
+                    unique_strengths = list(set(all_strengths))[:5]
+                    
+                    if percentage >= 90:
+                        grade = "A+"
+                        summary = "Exceptional performance! You demonstrated comprehensive mastery across all questions."
+                    elif percentage >= 80:
+                        grade = "A"
+                        summary = "Great job! Strong understanding of key theoretical principles with minor areas to refine."
+                    elif percentage >= 70:
+                        grade = "B"
+                        summary = "Good effort. You answered core questions reasonably well, but could improve depth."
+                    else:
+                        grade = "C"
+                        summary = "Needs further revision. Focus on strengthening foundational definitions and key mechanisms."
+                        
+                    session["active"] = False
+                    
+                    await websocket.send_json({
+                        "event": "viva_completed",
+                        "subject": session["subject"],
+                        "topic": session["topic"],
+                        "final_score": percentage,
+                        "average_question_score": round(avg_score, 1),
+                        "grade": grade,
+                        "summary": summary,
+                        "strengths": unique_strengths,
+                        "weak_areas": unique_weak,
+                        "history": session["history"]
+                    })
+                    
+            elif event_type == "end_viva":
+                if session["history"]:
+                    avg_score = sum(session["scores"]) / len(session["scores"])
+                    percentage = round((avg_score / 10.0) * 100, 1)
+                else:
+                    avg_score = 0
+                    percentage = 0.0
+                    
+                all_weak = []
+                for h in session["history"]:
+                    all_weak.extend(h.get("weak_concepts", []))
+                unique_weak = list(set(all_weak))[:5] or ["Incomplete session evaluation"]
+                
+                session["active"] = False
+                
+                await websocket.send_json({
+                    "event": "viva_completed",
+                    "subject": session["subject"],
+                    "topic": session["topic"],
+                    "final_score": percentage,
+                    "average_question_score": round(avg_score, 1),
+                    "grade": "Early Ended",
+                    "summary": f"Viva session ended early after {len(session['history'])} of {session['total_questions']} questions.",
+                    "strengths": ["Completed partial viva"],
+                    "weak_areas": unique_weak,
+                    "history": session["history"]
+                })
+                
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        try:
+            await websocket.send_json({"event": "error", "message": f"Server error: {str(e)}"})
+        except Exception:
+            pass
