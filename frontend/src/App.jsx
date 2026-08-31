@@ -13,6 +13,7 @@ import TestPage from './pages/TestPage';
 import Dashboard from './pages/Dashboard';
 import PDFUpload from './pages/PDFUpload';
 import StudentProfile from './pages/StudentProfile';
+import VivaRoom from './pages/VivaRoom';
 
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -90,6 +91,12 @@ function App() {
           {/* Public Test Practice */}
           <Route
             path="/test"
+            element={<TestPage />}
+          />
+
+          {/* AI Viva Voice Room */}
+          <Route
+            path="/viva"
             element={<TestPage />}
           />
 
