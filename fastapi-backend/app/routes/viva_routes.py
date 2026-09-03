@@ -15,11 +15,13 @@ from fastapi import (
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from database.session import get_db
+from database.session import get_db, SessionLocal
 from database.models import (
     Student,
     Document,
     KnowledgeChunk,
+    VivaSession,
+    VivaExchange,
 )
 
 from app.services.viva_service import get_viva_service
@@ -174,6 +176,50 @@ def get_context(
 
     return "\n".join(context_parts).strip()
 
+
+# ============================================================
+# PERSIST SESSION TO DB
+# ============================================================
+
+def persist_viva_session_to_db(session: Dict[str, Any], summary: Dict[str, Any]):
+    db = SessionLocal()
+    try:
+        from datetime import datetime
+        
+        db_session = VivaSession(
+            session_id=uuid.UUID(session["session_id"]),
+            student_id=uuid.UUID(session["student_id"]),
+            topic=session.get("topic", "General"),
+            status="completed",
+            started_at=datetime.fromtimestamp(session["started_at"]),
+            completed_at=datetime.now(),
+            average_score=summary.get("average_score", 0),
+            performance_label=summary.get("performance_label", ""),
+            summary_feedback=json.dumps({
+                "strengths": summary.get("strengths", []),
+                "areas_to_improve": summary.get("areas_to_improve", [])
+            })
+        )
+        db.add(db_session)
+        
+        for exchange in session.get("exchanges", []):
+            db_exchange = VivaExchange(
+                session_id=uuid.UUID(session["session_id"]),
+                question_number=exchange.get("question_number", 0),
+                question=exchange.get("question", ""),
+                answer=exchange.get("answer", ""),
+                topic=exchange.get("topic", "General"),
+                score=exchange.get("evaluation", {}).get("score", 0),
+                feedback=exchange.get("evaluation", {}).get("feedback", "")
+            )
+            db.add(db_exchange)
+            
+        db.commit()
+    except Exception as e:
+        logger.exception("Failed to persist viva session to DB: %s", e)
+        db.rollback()
+    finally:
+        db.close()
 
 # ============================================================
 # CREATE SESSION

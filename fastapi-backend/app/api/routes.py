@@ -1660,7 +1660,6 @@ async def viva_websocket_endpoint(websocket: WebSocket):
             await websocket.send_json({"event": "error", "message": f"Server error: {str(e)}"})
         except Exception:
             pass
-=======
 import os
 import uuid
 import tempfile
@@ -2729,4 +2728,3 @@ def get_struggle_data(
             for row in data
         ],
     }
->>>>>>> bd72a2a3fbff9cb4e6e45eea3a2af2ff7105df79
