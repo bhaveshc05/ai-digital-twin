@@ -2215,7 +2215,7 @@ export default function TestPage() {
       </Card>
     )
 
-  const vivaView = (
+  const vivaView = questions && questions.length > 0 ? (
     <div className="d-flex flex-column gap-4">
       <div className="hero-shell p-4 p-xl-5 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3 gap-lg-4">
         <div>
@@ -2290,7 +2290,6 @@ export default function TestPage() {
             </div>
           </Card>
         </div>
-      </div>
     ) : (
       <Card className="panel-surface p-5 text-center">
         <h4 style={{ color: '#f8fafc' }}>No quiz questions available</h4>
